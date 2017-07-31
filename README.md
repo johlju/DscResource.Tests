@@ -440,6 +440,8 @@ Invoke-AppveyorAfterTestTask `
 * Updated AppVeyor code so that common tests and unit tests is run on the working
   branch's tests. This is to be able to test changes to tests in pull requests
   without having to merge the pull request before seeing the result.
+* Add Script Analyzer custom rule to test functions and statements so that
+  opening braces are set according to the style guideline ([issue #27](https://github.com/PowerShell/DscResource.Tests/issues/27)).
 
 ### 0.2.0.0
 
