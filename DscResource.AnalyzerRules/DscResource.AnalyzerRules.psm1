@@ -160,7 +160,7 @@ function Measure-FunctionBlockBraces
                 <#
                     Remove carriage return since the file is different depending if it's run in
                     AppVeyor or locally. Locally it contains both '\r\n', but when cloned in
-                    AppVeyor it only contain '\n'.
+                    AppVeyor it only contains '\n'.
                 #>
                 $functionExtentTextWithNewLine = $functionAst.Extent -replace '\r', ''
 
@@ -203,7 +203,7 @@ function Measure-FunctionBlockBraces
                 if ($functionExtentRows.Count -ge 3)
                 {
                     # Check so that an opening brace is followed by only one new line.
-                    if ($functionExtentRows[2].Trim() -eq '')
+                    if (-not $functionExtentRows[2].Trim())
                     {
                         $results += New-Object `
                             -Typename $diagnosticRecordType `
@@ -289,7 +289,7 @@ function Measure-StatementBlockBraces
                         <#
                             Remove carriage return since the file is different depending if it's run in
                             AppVeyor or locally. Locally it contains both '\r\n', but when cloned in
-                            AppVeyor it only contain '\n'.
+                            AppVeyor it only contains '\n'.
                         #>
                         $statementParentExtentTextWithNewLine = $statementParentExtent.Text -replace '\r', ''
 
@@ -321,7 +321,7 @@ function Measure-StatementBlockBraces
                         <#
                             Remove carriage return since the file is different depending if it's run in
                             AppVeyor or locally. Locally it contains both '\r\n', but when cloned in
-                            AppVeyor it only contain '\n'.
+                            AppVeyor it only contains '\n'.
                         #>
                         $statementExtentTextWithNewLine = $statementExtent.Text -replace '\r', ''
 
@@ -347,7 +347,7 @@ function Measure-StatementBlockBraces
                         if ($statementExtentRows.Count -ge 2)
                         {
                             # Check so that an opening brace is followed by only one new line.
-                            if ($statementExtentRows[1].Trim() -eq '')
+                            if (-not $statementExtentRows[1].Trim())
                             {
                                 $results += New-Object `
                                     -Typename $diagnosticRecordType `
