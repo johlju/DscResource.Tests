@@ -1,7 +1,18 @@
 #Requires -Version 4.0
 
+# Import helper module
+Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'DscResource.AnalyzerRules.Helper.psm1')
+
 # Import Localized Data
 Import-LocalizedData -BindingVariable localizedData
+
+$script:diagnosticRecordType = 'Microsoft.Windows.PowerShell.ScriptAnalyzer.Generic.DiagnosticRecord'
+$script:diagnosticRecord = @{
+    Message  = ''
+    Extent   = $null
+    RuleName = $PSCmdlet.MyInvocation.InvocationName
+    Severity = 'Warning'
+}
 
 <#
 .SYNOPSIS
@@ -114,14 +125,14 @@ function Measure-ParameterBlockParameterAttribute
         Validates the function block braces and new lines around braces.
 
     .DESCRIPTION
-        Each function should have the opening brace on a separate line. Also, the
-        opening brace should be followed by a new line.
+        Each function should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
 
     .EXAMPLE
-        Measure-FunctionBlockBraces -ScriptBlockAst $ScriptBlockAst
+        Measure-FunctionBlockBraces -FunctionDefinitionAst $ScriptBlockAst
 
     .INPUTS
-        [System.Management.Automation.Language.ScriptBlockAst]
+        [System.Management.Automation.Language.FunctionDefinitionAst]
 
     .OUTPUTS
         [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
@@ -133,92 +144,41 @@ function Measure-FunctionBlockBraces
 {
     [CmdletBinding()]
     [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
-    Param
+    param
     (
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
-        [System.Management.Automation.Language.ScriptBlockAst]
-        $ScriptBlockAst
+        [System.Management.Automation.Language.FunctionDefinitionAst]
+        $FunctionDefinitionAst
     )
 
     Process
     {
-        $results = @()
-
         try
         {
-            $diagnosticRecordType = 'Microsoft.Windows.PowerShell.ScriptAnalyzer.Generic.DiagnosticRecord'
+            $script:diagnosticRecord['Extent'] = $FunctionDefinitionAst.Extent
 
-            $findAllFunctionsFilter = {
-                $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]
+            $testParameters = @{
+                StatementBlock = $FunctionDefinitionAst.Extent
             }
 
-            [System.Management.Automation.Language.Ast[]] $functionsAst = $ScriptBlockAst.FindAll( $findAllFunctionsFilter, $true )
-
-            foreach ($functionAst in $functionsAst)
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
             {
-                <#
-                    Remove carriage return since the file is different depending if it's run in
-                    AppVeyor or locally. Locally it contains both '\r\n', but when cloned in
-                    AppVeyor it only contains '\n'.
-                #>
-                $functionExtentTextWithNewLine = $functionAst.Extent -replace '\r', ''
+                $script:diagnosticRecord['Message'] = $localizedData.FunctionOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
 
-                $functionExtentRows = $functionExtentTextWithNewLine -split '\n'
+            if (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.FunctionOpeningBraceShouldBeFollowedByNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
 
-                if ($functionExtentRows.Count)
-                {
-                    # Check so that an opening brace does not exist on the same line as the function name.
-                    if ($functionExtentRows[0] -match '\{')
-                    {
-                        $results += New-Object `
-                            -Typename $diagnosticRecordType `
-                            -ArgumentList @(
-                            $localizedData.FunctionOpeningBraceNotOnSameLine, `
-                                $functionAst.Extent, `
-                                $PSCmdlet.MyInvocation.InvocationName, `
-                                'Warning', `
-                                $null
-                        )
-                    } # if
-                } # if
-
-                if ($functionExtentRows.Count -ge 2)
-                {
-                    # Check so that an opening brace is followed by a new line.
-                    if ($functionExtentRows[1] -match '\{.+')
-                    {
-                        $results += New-Object `
-                            -Typename $diagnosticRecordType `
-                            -ArgumentList @(
-                            $localizedData.FunctionOpeningBraceShouldBeFollowedByNewLine, `
-                                $functionAst.Extent, `
-                                $PSCmdlet.MyInvocation.InvocationName, `
-                                'Warning', `
-                                $null
-                        )
-                    } # if
-                } # if
-
-                if ($functionExtentRows.Count -ge 3)
-                {
-                    # Check so that an opening brace is followed by only one new line.
-                    if (-not $functionExtentRows[2].Trim())
-                    {
-                        $results += New-Object `
-                            -Typename $diagnosticRecordType `
-                            -ArgumentList @(
-                            $localizedData.FunctionOpeningBraceShouldBeFollowedByOnlyOneNewLine, `
-                                $functionAst.Extent, `
-                                $PSCmdlet.MyInvocation.InvocationName, `
-                                'Warning', `
-                                $null
-                        )
-                    } # if
-                } # if
-            }
-
-            return $results
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.FunctionOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
         }
         catch
         {
@@ -229,17 +189,17 @@ function Measure-FunctionBlockBraces
 
 <#
     .SYNOPSIS
-        Validates the statement block braces and new lines around braces.
+        Validates the if-statement block braces and new lines around braces.
 
     .DESCRIPTION
-        Each statement should have the opening brace on a separate line. Also, the
-        opening brace should be followed by a new line.
+        Each if-statement should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
 
     .EXAMPLE
-        Measure-StatementBlockBraces -ScriptBlockAst $ScriptBlockAst
+        Measure-IfStatement -IfStatementAst $ScriptBlockAst
 
     .INPUTS
-        [System.Management.Automation.Language.ScriptBlockAst]
+        [System.Management.Automation.Language.IfStatementAst]
 
     .OUTPUTS
         [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
@@ -247,7 +207,7 @@ function Measure-FunctionBlockBraces
    .NOTES
         None
 #>
-function Measure-StatementBlockBraces
+function Measure-IfStatement
 {
     [CmdletBinding()]
     [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
@@ -255,116 +215,37 @@ function Measure-StatementBlockBraces
     (
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
-        [System.Management.Automation.Language.ScriptBlockAst]
-        $ScriptBlockAst
+        [System.Management.Automation.Language.IfStatementAst]
+        $IfStatementAst
     )
 
     Process
     {
-        $results = @()
-
         try
         {
-            $diagnosticRecordType = 'Microsoft.Windows.PowerShell.ScriptAnalyzer.Generic.DiagnosticRecord'
+            $script:diagnosticRecord['Extent'] = $IfStatementAst.Extent
 
-            $findAllFunctionsFilter = {
-                $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst]
+            $testParameters = @{
+                StatementBlock = $IfStatementAst.Extent
             }
 
-            [System.Management.Automation.Language.Ast[]] $functionsAst = $ScriptBlockAst.FindAll( $findAllFunctionsFilter, $true )
-
-            foreach ($functionAst in $functionsAst)
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
             {
-                $findAllStatementBlockFilter = {
-                    $args[0] -is [System.Management.Automation.Language.StatementBlockAst]
-                }
+                $script:diagnosticRecord['Message'] = $localizedData.IfStatementOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
 
-                [System.Management.Automation.Language.Ast[]] $statementBlocksAst = $functionAst.FindAll( $findAllStatementBlockFilter, $true )
-                if ($statementBlocksAst)
-                {
-                    $statementParentExtents = $statementBlocksAst.Parent.Extent
+            if (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.IfStatementOpeningBraceShouldBeFollowedByNewLine
+                $diagnosticRecord -as $diagnosticRecordType
+            } # if
 
-                    foreach ($statementParentExtent in $statementParentExtents)
-                    {
-                        <#
-                            Remove carriage return since the file is different depending if it's run in
-                            AppVeyor or locally. Locally it contains both '\r\n', but when cloned in
-                            AppVeyor it only contains '\n'.
-                        #>
-                        $statementParentExtentTextWithNewLine = $statementParentExtent.Text -replace '\r', ''
-
-                        $statementParentExtentRows = $statementParentExtentTextWithNewLine -split '\n'
-
-                        if ($statementParentExtentRows.Count)
-                        {
-                            # Check so that an opening brace does not exist on the same line as the statement.
-                            if ($statementParentExtentRows[0] -match '\{')
-                            {
-
-                                $results += New-Object `
-                                    -Typename $diagnosticRecordType `
-                                    -ArgumentList @(
-                                    $localizedData.StatementOpeningBraceNotOnSameLine, `
-                                        $statementParentExtent, `
-                                        $PSCmdlet.MyInvocation.InvocationName, `
-                                        'Warning', `
-                                        $null
-                                    )
-                            } # if
-                        } # if
-                    } # foreach statement parent
-
-                    $statementExtents = $statementBlocksAst.Extent
-
-                    foreach ($statementExtent in $statementExtents)
-                    {
-                        <#
-                            Remove carriage return since the file is different depending if it's run in
-                            AppVeyor or locally. Locally it contains both '\r\n', but when cloned in
-                            AppVeyor it only contains '\n'.
-                        #>
-                        $statementExtentTextWithNewLine = $statementExtent.Text -replace '\r', ''
-
-                        $statementExtentRows = $statementExtentTextWithNewLine -split '\n'
-
-                        if ($statementExtentRows.Count)
-                        {
-                            # Check so that an opening brace is followed by a new line.
-                            if ($statementExtentRows[0] -match '\{.+')
-                            {
-                                $results += New-Object `
-                                    -Typename $diagnosticRecordType `
-                                    -ArgumentList @(
-                                    $localizedData.StatementOpeningBraceShouldBeFollowedByNewLine, `
-                                        $statementExtent, `
-                                        $PSCmdlet.MyInvocation.InvocationName, `
-                                        'Warning', `
-                                        $null
-                                    )
-                            } # if
-                        } # if
-
-                        if ($statementExtentRows.Count -ge 2)
-                        {
-                            # Check so that an opening brace is followed by only one new line.
-                            if (-not $statementExtentRows[1].Trim())
-                            {
-                                $results += New-Object `
-                                    -Typename $diagnosticRecordType `
-                                    -ArgumentList @(
-                                    $localizedData.StatementOpeningBraceShouldBeFollowedByOnlyOneNewLine, `
-                                        $statementExtent, `
-                                        $PSCmdlet.MyInvocation.InvocationName, `
-                                        'Warning', `
-                                        $null
-                                )
-                            } # if
-                        } # if
-                    } # foreach statement
-                } # if
-            } # foreach function
-
-            return $results
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.IfStatementOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
         }
         catch
         {
@@ -373,4 +254,544 @@ function Measure-StatementBlockBraces
     }
 }
 
-Export-ModuleMember -Function Measure*
+<#
+    .SYNOPSIS
+        Validates the foreach-statement block braces and new lines around braces.
+
+    .DESCRIPTION
+        Each foreach-statement should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
+
+    .EXAMPLE
+        Measure-ForEachStatement -ForEachStatementAst $ScriptBlockAst
+
+    .INPUTS
+        [System.Management.Automation.Language.ForEachStatementAst]
+
+    .OUTPUTS
+        [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
+
+   .NOTES
+        None
+#>
+function Measure-ForEachStatement
+{
+    [CmdletBinding()]
+    [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.Language.ForEachStatementAst]
+        $ForEachStatementAst
+    )
+
+    Process
+    {
+        try
+        {
+            $script:diagnosticRecord['Extent'] = $ForEachStatementAst.Extent
+
+            $testParameters = @{
+                StatementBlock = $ForEachStatementAst.Extent
+            }
+
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.ForEachStatementOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.ForEachStatementOpeningBraceShouldBeFollowedByNewLine
+                $diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.ForEachStatementOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($PSItem)
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+        Validates the DoUntil-statement block braces and new lines around braces.
+
+    .DESCRIPTION
+        Each DoUntil-statement should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
+
+    .EXAMPLE
+        Measure-DoUntilStatement -DoUntilStatementAst $ScriptBlockAst
+
+    .INPUTS
+        [System.Management.Automation.Language.DoUntilStatementAst]
+
+    .OUTPUTS
+        [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
+
+   .NOTES
+        None
+#>
+function Measure-DoUntilStatement
+{
+    [CmdletBinding()]
+    [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.Language.DoUntilStatementAst]
+        $DoUntilStatementAst
+    )
+
+    Process
+    {
+        try
+        {
+            $script:diagnosticRecord['Extent'] = $DoUntilStatementAst.Extent
+
+            $testParameters = @{
+                StatementBlock = $DoUntilStatementAst.Extent
+            }
+
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.DoUntilStatementOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.DoUntilStatementOpeningBraceShouldBeFollowedByNewLine
+                $diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.DoUntilStatementOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($PSItem)
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+        Validates the DoWhile-statement block braces and new lines around braces.
+
+    .DESCRIPTION
+        Each DoWhile-statement should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
+
+    .EXAMPLE
+        Measure-DoWhileStatement -DoWhileStatementAst $ScriptBlockAst
+
+    .INPUTS
+        [System.Management.Automation.Language.DoWhileStatementAst]
+
+    .OUTPUTS
+        [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
+
+   .NOTES
+        None
+#>
+function Measure-DoWhileStatement
+{
+    [CmdletBinding()]
+    [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.Language.DoWhileStatementAst]
+        $DoWhileStatementAst
+    )
+
+    Process
+    {
+        try
+        {
+            $script:diagnosticRecord['Extent'] = $DoWhileStatementAst.Extent
+
+            $testParameters = @{
+                StatementBlock = $DoWhileStatementAst.Extent
+            }
+
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.DoWhileStatementOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.DoWhileStatementOpeningBraceShouldBeFollowedByNewLine
+                $diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.DoWhileStatementOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($PSItem)
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+        Validates the while-statement block braces and new lines around braces.
+
+    .DESCRIPTION
+        Each while-statement should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
+
+    .EXAMPLE
+        Measure-WhileStatement -WhileStatementAst $ScriptBlockAst
+
+    .INPUTS
+        [System.Management.Automation.Language.WhileStatementAst]
+
+    .OUTPUTS
+        [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
+
+   .NOTES
+        None
+#>
+function Measure-WhileStatement
+{
+    [CmdletBinding()]
+    [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.Language.WhileStatementAst]
+        $WhileStatementAst
+    )
+
+    Process
+    {
+        try
+        {
+            $script:diagnosticRecord['Extent'] = $WhileStatementAst.Extent
+
+            $testParameters = @{
+                StatementBlock = $WhileStatementAst.Extent
+            }
+
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.WhileStatementOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.WhileStatementOpeningBraceShouldBeFollowedByNewLine
+                $diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.WhileStatementOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($PSItem)
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+        Validates the for-statement block braces and new lines around braces.
+
+    .DESCRIPTION
+        Each for-statement should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
+
+    .EXAMPLE
+        Measure-ForStatement -ForStatementAst $ScriptBlockAst
+
+    .INPUTS
+        [System.Management.Automation.Language.ForStatementAst]
+
+    .OUTPUTS
+        [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
+
+   .NOTES
+        None
+#>
+function Measure-ForStatement
+{
+    [CmdletBinding()]
+    [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.Language.ForStatementAst]
+        $ForStatementAst
+    )
+
+    Process
+    {
+        try
+        {
+            $script:diagnosticRecord['Extent'] = $ForStatementAst.Extent
+
+            $testParameters = @{
+                StatementBlock = $ForStatementAst.Extent
+            }
+
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.ForStatementOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.ForStatementOpeningBraceShouldBeFollowedByNewLine
+                $diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.ForStatementOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($PSItem)
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+        Validates the switch-statement block braces and new lines around braces.
+
+    .DESCRIPTION
+        Each switch-statement should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
+
+    .EXAMPLE
+        Measure-SwitchStatement -SwitchStatementAst $ScriptBlockAst
+
+    .INPUTS
+        [System.Management.Automation.Language.SwitchStatementAst]
+
+    .OUTPUTS
+        [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
+
+   .NOTES
+        None
+#>
+function Measure-SwitchStatement
+{
+    [CmdletBinding()]
+    [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.Language.SwitchStatementAst]
+        $SwitchStatementAst
+    )
+
+    Process
+    {
+        try
+        {
+            $script:diagnosticRecord['Extent'] = $SwitchStatementAst.Extent
+
+            $testParameters = @{
+                StatementBlock = $SwitchStatementAst.Extent
+            }
+
+            <#
+                Must use an else block here, because otherwise, if there is a
+                switch-clause that is formatted wrong it will hit on that
+                and return the wrong rule message.
+            #>
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.SwitchStatementOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            }
+            elseif (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.SwitchStatementOpeningBraceShouldBeFollowedByNewLine
+                $diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.SwitchStatementOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($PSItem)
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+        Validates the try-statement block braces and new lines around braces.
+
+    .DESCRIPTION
+        Each try-statement should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
+
+    .EXAMPLE
+        Measure-TryStatement -TryStatementAst $ScriptBlockAst
+
+    .INPUTS
+        [System.Management.Automation.Language.TryStatementAst]
+
+    .OUTPUTS
+        [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
+
+   .NOTES
+        None
+#>
+function Measure-TryStatement
+{
+    [CmdletBinding()]
+    [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.Language.TryStatementAst]
+        $TryStatementAst
+    )
+
+    Process
+    {
+        try
+        {
+            $script:diagnosticRecord['Extent'] = $TryStatementAst.Extent
+
+            $testParameters = @{
+                StatementBlock = $TryStatementAst.Extent
+            }
+
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.TryStatementOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            }
+
+            if (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.TryStatementOpeningBraceShouldBeFollowedByNewLine
+                $diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.TryStatementOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($PSItem)
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+        Validates the catch-clause block braces and new lines around braces.
+
+    .DESCRIPTION
+        Each catch-clause should have the opening brace on a separate line.
+        Also, the opening brace should be followed by a new line.
+
+    .EXAMPLE
+        Measure-CatchClause -CatchClauseAst $ScriptBlockAst
+
+    .INPUTS
+        [System.Management.Automation.Language.CatchClauseAst]
+
+    .OUTPUTS
+        [Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
+
+   .NOTES
+        None
+#>
+function Measure-CatchClause
+{
+    [CmdletBinding()]
+    [OutputType([Microsoft.Windows.Powershell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.Language.CatchClauseAst]
+        $CatchClauseAst
+    )
+
+    Process
+    {
+        try
+        {
+            $script:diagnosticRecord['Extent'] = $CatchClauseAst.Extent
+
+            $testParameters = @{
+                StatementBlock = $CatchClauseAst.Extent
+            }
+
+            if (Test-StatementOpeningBraceOnSameLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.CatchClauseOpeningBraceNotOnSameLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            }
+
+            if (Test-StatementOpeningBraceIsNotFollowedByNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.CatchClauseOpeningBraceShouldBeFollowedByNewLine
+                $diagnosticRecord -as $diagnosticRecordType
+            } # if
+
+            if (Test-StatementOpeningBraceIsFollowedByMoreThanOneNewLine @testParameters)
+            {
+                $script:diagnosticRecord['Message'] = $localizedData.CatchClauseOpeningBraceShouldBeFollowedByOnlyOneNewLine
+                $script:diagnosticRecord -as $diagnosticRecordType
+            } # if
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($PSItem)
+        }
+    }
+}
+
+Export-ModuleMember -Function Measure-*
