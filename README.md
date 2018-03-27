@@ -613,6 +613,9 @@ These are the artifacts that differ when running tests using a container.
   in a container by decorating each test file with either
   `[Microsoft.DscResourceKit.IntegrationTest()]` or
   `[Microsoft.DscResourceKit.UnitTest()]`.
+* Fix container bugs
+  * Handling of tag for images are now correct.
+  * Correct message is displayed when downloading an image.
 
 ### 0.2.0.0
 

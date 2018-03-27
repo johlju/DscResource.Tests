@@ -61,7 +61,7 @@ InModuleScope -ModuleName 'DscResource.Container' {
     $mockDockerImages_ParameterFilter = {
         $args[0] -eq 'images' `
             -and $args[1] -eq '--format' `
-            -and $args[2] -eq '{{.Repository}}'
+            -and $args[2] -eq '{{.Repository}}:{{.Tag}}'
     }
 
     $mockDockerPull_ParameterFilter = {
@@ -669,7 +669,7 @@ InModuleScope -ModuleName 'DscResource.Container' {
         BeforeAll {
             $mockIdentifier = '1A3'
             $mockName = 'TestContainer'
-            $mockImageName = 'microsoft/windowsservercore'
+            $mockImageName = 'microsoft/windowsservercore:latest'
             $mockTestPath = @('C:\Test1.Tests.ps1', 'C:\Test2.Tests.ps1')
             $mockCodeCoverage = @('C:\Test1.psm1', 'C:\Test2.psm1')
         }
@@ -738,7 +738,29 @@ InModuleScope -ModuleName 'DscResource.Container' {
 
                 Assert-MockCalled -CommandName 'Copy-ItemToContainer' -Exactly -Times 2 -Scope It
                 Assert-MockCalled -CommandName 'Out-File' -Exactly -Times 1 -Scope It
+            }
 
+            Context 'When the container image already exist' {
+                BeforeAll {
+                    Mock -CommandName 'docker' -MockWith {
+                        return @($mockImageName)
+                    } -ParameterFilter $mockDockerImages_ParameterFilter
+                }
+
+                It 'Should not pull the container image' {
+                    $newContainerParameters = @{
+                        Name         = $mockName
+                        ImageName    = $mockImageName
+                        TestPath     = $mockTestPath
+                        ProjectPath  = $TestDrive
+                        CodeCoverage = $mockCodeCoverage
+                    }
+
+                    { New-Container @newContainerParameters } | Should -Not -Throw
+
+                    Assert-MockCalled -CommandName 'docker' `
+                        -ParameterFilter $mockDockerPull_ParameterFilter -Exactly -Times 0 -Scope It
+                }
             }
         }
 
