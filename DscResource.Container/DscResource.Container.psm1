@@ -159,10 +159,10 @@ function New-Container
     }
 
     # Make sure we have the correct container images available.
-    [System.String[]] $dockerImages = docker images --format "{{.Repository}}"
+    [System.String[]] $dockerImages = docker images --format "{{.Repository}}:{{.Tag}}"
     if (-not $dockerImages.Contains($ImageName))
     {
-        Write-Info ($script:localizedData.DockerIsNotAvailable -f $ImageName)
+        Write-Info ($script:localizedData.DownloadingImage -f $ImageName)
         <#
             Pulling the latest image. Using Out-Null so it does
             not output download information.

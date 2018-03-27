@@ -580,6 +580,9 @@ These are the artifacts that differ when running tests using a container.
   so that it is possible to change the color of the text that is written.
 * Added module DscResource.Container which contain logic to handle the container
   testing when unit tests are run in a Docker Windows container.
+* Fix container bugs
+  * Handling of tag for images are now correct.
+  * Correct message is displayed when downloading an image.
 
 ### 0.2.0.0
 
