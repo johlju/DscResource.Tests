@@ -47,6 +47,150 @@ InModuleScope $script:ModuleName {
             }
         }
     }
+    Describe 'TestHelper\Get-DscTestContainerInformation' {
+        BeforeAll {
+            $mockContainerImageName = 'Organization/ImageName:Tag'
+            $mockContainerName = 'ContainerName'
+        }
+
+        Context 'When the test is a integration tests' {
+            BeforeAll {
+                # Set up TestDrive
+                $filePath_NoAttribute = Join-Path -Path $TestDrive -ChildPath 'NoAttribute.ps1'
+                $filePath_WrongAttribute = Join-Path -Path $TestDrive -ChildPath 'WrongAttribute.ps1'
+                $filePath_CorrectAttribute = Join-Path -Path $TestDrive -ChildPath 'CorrectAttribute.ps1'
+                $filePath_CorrectAttributeOnlyContainerName = Join-Path -Path $TestDrive -ChildPath 'CorrectAttributeOnlyContainerName.ps1'
+                $filePath_CorrectAttributeWithOrderNumber = Join-Path -Path $TestDrive -ChildPath 'CorrectAttributeWithOrderNumber.ps1'
+
+                '
+                param()
+                ' | Out-File -FilePath $filePath_NoAttribute
+
+                '
+                [Microsoft.DscResourceKit.IntegrationTest(UnknownParameter = 2)]
+                param()
+                ' | Out-File -FilePath $filePath_WrongAttribute
+
+                ('
+                [Microsoft.DscResourceKit.IntegrationTest(ContainerName = ''{0}'')]
+                param()
+                ' -f $mockContainerName) | Out-File -FilePath $filePath_CorrectAttributeOnlyContainerName
+
+                ('
+                [Microsoft.DscResourceKit.IntegrationTest(ContainerName = ''{0}'', ContainerImage = ''{1}'')]
+                param()
+                ' -f $mockContainerName, $mockContainerImageName) | Out-File -FilePath $filePath_CorrectAttribute
+
+                ('
+                [Microsoft.DscResourceKit.IntegrationTest(OrderNumber = 1, ContainerName = ''{0}'', ContainerImage = ''{1}'')]
+                param()
+                ' -f $mockContainerName, $mockContainerImageName) | Out-File -FilePath $filePath_CorrectAttributeWithOrderNumber
+            }
+
+            Context 'When configuration file does not contain the correct attribute' {
+                It 'Should not return any value' {
+                    $result = Get-DscTestContainerInformation -Path $filePath_NoAttribute
+                    $result | Should -BeNullOrEmpty
+                }
+            }
+
+            Context 'When configuration file contain a attribute but without the correct named attribute arguments' {
+                It 'Should not return any value' {
+                    $result = Get-DscTestContainerInformation -Path $filePath_WrongAttribute
+                    $result | Should -BeNullOrEmpty
+                }
+            }
+
+            Context 'When configuration file does contain a attribute and with only the correct named attribute argument ''ContainerName''' {
+                It 'Should not return any value' {
+                    $result = Get-DscTestContainerInformation -Path $filePath_CorrectAttributeOnlyContainerName
+                    $result | Should -BeOfType [System.Collections.Hashtable]
+                    $result.ContainerName | Should -Be $mockContainerName
+                    $result.ContainerImage | Should -BeNullOrEmpty
+                }
+            }
+
+            Context 'When configuration file does contain a attribute and with the correct named attribute arguments' {
+                It 'Should not return any value' {
+                    $result = Get-DscTestContainerInformation -Path $filePath_CorrectAttribute
+                    $result | Should -BeOfType [System.Collections.Hashtable]
+                    $result.ContainerName | Should -Be $mockContainerName
+                    $result.ContainerImage | Should -Be $mockContainerImageName
+                }
+            }
+
+            Context 'When configuration file contain more attributes than just the correct named attribute arguments' {
+                It 'Should not return any value' {
+                    $result = Get-DscTestContainerInformation -Path $filePath_CorrectAttributeWithOrderNumber
+                    $result | Should -BeOfType [System.Collections.Hashtable]
+                    $result.ContainerName | Should -Be $mockContainerName
+                    $result.ContainerImage | Should -Be $mockContainerImageName
+                }
+            }
+        }
+
+        Context 'When the test is a unit tests' {
+            BeforeAll {
+                # Set up TestDrive
+                $filePath_NoAttribute = Join-Path -Path $TestDrive -ChildPath 'NoAttribute.ps1'
+                $filePath_WrongAttribute = Join-Path -Path $TestDrive -ChildPath 'WrongAttribute.ps1'
+                $filePath_CorrectAttribute = Join-Path -Path $TestDrive -ChildPath 'CorrectAttribute.ps1'
+                $filePath_CorrectAttributeOnlyContainerName = Join-Path -Path $TestDrive -ChildPath 'CorrectAttributeOnlyContainerName.ps1'
+
+                '
+                param()
+                ' | Out-File -FilePath $filePath_NoAttribute
+
+                '
+                [Microsoft.DscResourceKit.UnitTest(UnknownParameter = 2)]
+                param()
+                ' | Out-File -FilePath $filePath_WrongAttribute
+
+                ('
+                [Microsoft.DscResourceKit.UnitTest(ContainerName = ''{0}'')]
+                param()
+                ' -f $mockContainerName) | Out-File -FilePath $filePath_CorrectAttributeOnlyContainerName
+
+                ('
+                [Microsoft.DscResourceKit.UnitTest(ContainerName = ''{0}'', ContainerImage = ''{1}'')]
+                param()
+                ' -f $mockContainerName, $mockContainerImageName) | Out-File -FilePath $filePath_CorrectAttribute
+            }
+
+            Context 'When configuration file does not contain the correct attribute' {
+                It 'Should not return any value' {
+                    $result = Get-DscTestContainerInformation -Path $filePath_NoAttribute
+                    $result | Should -BeNullOrEmpty
+                }
+            }
+
+            Context 'When configuration file contain a attribute but without the correct named attribute arguments' {
+                It 'Should not return any value' {
+                    $result = Get-DscTestContainerInformation -Path $filePath_WrongAttribute
+                    $result | Should -BeNullOrEmpty
+                }
+            }
+
+            Context 'When configuration file does contain a attribute and with only the correct named attribute argument ''ContainerName''' {
+                It 'Should not return any value' {
+                    $result = Get-DscTestContainerInformation -Path $filePath_CorrectAttributeOnlyContainerName
+                    $result | Should -BeOfType [System.Collections.Hashtable]
+                    $result.ContainerName | Should -Be $mockContainerName
+                    $result.ContainerImage | Should -BeNullOrEmpty
+                }
+            }
+
+            Context 'When configuration file does contain a attribute and with the correct named attribute arguments' {
+                It 'Should not return any value' {
+                    $result = Get-DscTestContainerInformation -Path $filePath_CorrectAttribute
+                    $result | Should -BeOfType [System.Collections.Hashtable]
+                    $result.ContainerName | Should -Be $mockContainerName
+                    $result.ContainerImage | Should -Be $mockContainerImageName
+                }
+            }
+        }
+    }
+
 
     Describe 'TestHelper\Test-IsRepositoryDscResourceTests' {
         Context 'When the repository is DscResource.Tests' {
