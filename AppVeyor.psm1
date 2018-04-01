@@ -334,6 +334,7 @@ function Invoke-AppveyorTestScriptTask
                             OrderNumber = $null
                             ContainerName = $null
                             ContainerImage = $null
+                            ContainerIdentifier = $null
                         }
                     )
                 }
@@ -510,7 +511,7 @@ function Invoke-AppveyorTestScriptTask
                             Create the new Docker container and assign the identifier
                             to the hash table object.
                         #>
-                        $currentContainer['ContainerIdentifier'] = New-Container @newContainerParameters
+                        $currentContainer.ContainerIdentifier = New-Container @newContainerParameters
 
                         <#
                             This will always start the container. If for some reason
