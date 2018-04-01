@@ -368,20 +368,22 @@ This should be put a the top of the integration test script file.
 param()
 ```
 
-## Run unit tests in a Docker Windows container
+### Run unit tests in a Docker Windows container
 
-If the function `Invoke-AppveyorTestScriptTask` is called with *both*
-parameters `-RunInOrder` and `-RunInContainer`, then all the unit
-tests located in the folder '\Tests\Unit' will be run in a container.
-The common tests and integration tests will then be run on the AppVeyor
-build worker. This make it possible to run integration tests and unit
-tests in parallell.
+The same parameter `RunTestInOrder` can also be use to run unit tests or integration
+tests in a container. This make it possible to run integration tests and unit tests
+in parallell on the same build worker.
+The common tests will by default always be run on the AppVeyor build worker.
+
+To run a test in a container, the test must be decorated with either attribute `Microsoft.DscResourceKit.IntegrationTest` or `Microsoft.DscResourceKit.UnitTest`
+depending on the type of test.
 
 The Pester output from the container, including errors will be sent to
 the console in a Pester like format, and they will also be added to the
 list of tests in AppVeyor portal. There is transcript from the
 test run that is uploaded as artifact in AppVeyor which can contain more
 detailed errors why the one test failed.
+
 > **Note:** The transcript catches more output than Pester normally writes
 > to the console since it sees all errors that Pester catches with
 > `| Should -Throw`.
@@ -391,6 +393,37 @@ container is gathered and uploaded as an artifact. This is intended to enable
 a more detailed error of what happened to be displayed.
 The Docker log will be searched for any error records. If any are found then
 an exception will be thrown which will stop the the tests in the build worker.
+
+#### Named attribute argument
+
+* **ContainerName**: The name of the container. If the same container name is used
+  in multiple test they will be run in the same container.
+* **ContainerImage**: The name of the container image to use for the container.
+  This should use the normal Docker format for specifying a Docker image.
+  ***Note:** If the same container name is used in multiple test and they have different
+  container images, the first container image that is loaded from at test will be
+  used.*
+
+#### Example
+
+Example showing how the integration test file could look like to run the test in
+a container, and at the same time make sure an integration test is always run as
+one of the first integration tests.
+This should be put a the top of the integration test script file.
+
+```powershell
+[Microsoft.DscResourceKit.IntegrationTest(OrderNumber = 1, ContainerName = 'ContainerName', ContainerImage = 'Organization/ImageName:Tag')]
+param()
+```
+
+Example showing how the unit test file could look like to run the test in
+a container. Unit test does not support ordered testing at this time.
+This should be put a the top of the unit test script file.
+
+```powershell
+[Microsoft.DscResourceKit.UnitTest(ContainerName = 'ContainerName', ContainerImage = 'Organization/ImageName:Tag')]
+param()
+```
 
 ### Artifacts when running tests in a container
 
@@ -576,6 +609,10 @@ These are the artifacts that differ when running tests using a container.
   handle running tests in a container, but only if at least on test is decorated
   using `[Microsoft.DscResourceKit.IntegrationTest()]` or
   `[Microsoft.DscResourceKit.UnitTest()]`, together with the correct named arguments.
+* Added support for the default shared module to run unit test and integration test
+  in a container by decorating each test file with either
+  `[Microsoft.DscResourceKit.IntegrationTest()]` or
+  `[Microsoft.DscResourceKit.UnitTest()]`.
 
 ### 0.2.0.0
 
