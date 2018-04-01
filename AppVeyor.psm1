@@ -379,12 +379,6 @@ function Invoke-AppveyorTestScriptTask
                     {
                         $testObject.ContainerName = $containerInformation.ContainerName
                         $testObject.ContainerImage = $containerInformation.ContainerImage
-
-                        Write-Verbose `
-                            -Message (
-                                'Found test ''{0}'' wanting to use container name ''{1}'' with image ''{2}''' `
-                                -f $testObject.TestPath, $testObject.ContainerName, $testObject.ContainerImage) `
-                            -Verbose
                     }
                 }
 
@@ -400,9 +394,22 @@ function Invoke-AppveyorTestScriptTask
                 #>
                 $testObjectOrder = @()
 
-                # Add tests that have OrderNumber -eq 0
+                <#
+                    Add tests that have OrderNumber -eq 0 and are not assigned a
+                    container. This is the common tests.
+                #>
                 $testObjectOrder += $testObjects | Where-Object -FilterScript {
-                    $_.OrderNumber -eq 0
+                    $_.OrderNumber -eq 0 `
+                    -and $null -eq $_.ContainerName
+                }
+
+
+                <#
+                    Get all tests that have a container assigned so those can be
+                    started.
+                #>
+                $testObjectUsingContainer = $testObjects | Where-Object -FilterScript {
+                    $null -ne $_.ContainerName
                 }
 
                 <#
@@ -414,7 +421,7 @@ function Invoke-AppveyorTestScriptTask
                     # Import the module containing the container helper functions.
                     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'DscResource.Container')
 
-                    Write-Info -Message 'Using a Docker Windows container to run unit tests.'
+                    Write-Info -Message 'Using a Docker Windows container to run tests.'
 
                     # Filter out tests that uses mocks (unit tests).
                     $testObjectOrderContainer += $testObjects | Where-Object -FilterScript {
@@ -519,24 +526,38 @@ function Invoke-AppveyorTestScriptTask
 
                     $pesterParameters['OutputFile'] = $testResultsFile
                 }
-                else
-                {
-                    # Add tests that uses mocks (unit tests).
-                    $testObjectOrder += $testObjects | Where-Object -FilterScript {
-                        $null -eq $_.OrderNumber `
-                        -and $_.TestPath -notmatch 'Integration.Tests'
-                    }
-                }
 
-                # Add integration tests that must run in the correct order
-                $testObjectOrder += $testObjects | Where-Object -FilterScript {
-                    $null -ne $_.OrderNumber `
-                    -and $_.OrderNumber -ne 0
-                } | Sort-Object -Property 'OrderNumber'
-
-                # Then add the rest of the integration tests.
+                <#
+                    Add tests that uses mocks (unit tests) which does not have an
+                    order number, nor have a container assigned.
+                #>
                 $testObjectOrder += $testObjects | Where-Object -FilterScript {
                     $null -eq $_.OrderNumber `
+                    -and $null -eq $_.ContainerName `
+                    -and $_.TestPath -notmatch 'Integration.Tests'
+                }
+
+                <#
+                    Add integration tests that must run in the correct order.
+                    These test have an order number higher than 0, and contain
+                    'Integration.Tests' in the filename, but does not have a
+                    container assigned.
+                #>
+                $testObjectOrder += $testObjects | Where-Object -FilterScript {
+                    $null -eq $_.ContainerName `
+                    -and $_.OrderNumber -gt 0
+                    -and $_.TestPath -match 'Integration.Tests'
+                } | Sort-Object -Property 'OrderNumber'
+
+                <#
+                    Finally add integration tests that can run unordered.
+                    These tests does not have an order number, and does not have
+                    a container assigned, but do contain 'Integration.Tests' in
+                    the filename.
+                #>
+                $testObjectOrder += $testObjects | Where-Object -FilterScript {
+                    $null -eq $_.OrderNumber `
+                    -and $null -eq $_.ContainerName `
                     -and $_.TestPath -match 'Integration.Tests'
                 }
 
