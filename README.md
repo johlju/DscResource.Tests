@@ -563,13 +563,19 @@ These are the artifacts that differ when running tests using a container.
   testing when unit tests are run in a Docker Windows container.
 * Added new helper function Get-DscTestContainerInformation to read the container
   information in a particular PowerShell script test file (.Tests.ps1).
-* BREAKING CHANGE: For those repositories that are using `-RunTestInOrder` the
+* BREAKING CHANGE: For those repositories that are using parameter `RunTestInOrder`
+  for the helper function `Invoke-AppveyorTestScriptTask` the
   decoration `[Microsoft.DscResourceKit.IntegrationTest(OrderNumber = 1)]` need
   to move from the configuration file to the test file. This was done since unit
   tests does not have configuration files, and also to align the ability to
   define the order and the container information using the same decoration.
   It is also natural to have the decoration in the test files since those are
   the scripts that are actually run in order.
+* BREAKING CHANGE: The parameter `RunInDocker` is removed in helper function
+  `Invoke-AppveyorTestScriptTask`. Using parameter `RunTestInOrder` will now
+  handle running tests in a container, but only if at least on test is decorated
+  using `[Microsoft.DscResourceKit.IntegrationTest()]` or
+  `[Microsoft.DscResourceKit.UnitTest()]`, together with the correct named arguments.
 
 ### 0.2.0.0
 
