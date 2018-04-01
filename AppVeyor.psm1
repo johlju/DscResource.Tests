@@ -408,20 +408,36 @@ function Invoke-AppveyorTestScriptTask
                 }
 
                 <#
-                    Get unique container names with the corresponding container image.
-                    Using an expression to be able to sort the array of hash tables.
-                #>
-                $testContainer = $testObjectUsingContainer |
-                                        Sort-Object -Property @{
-                                            Expression = { $_.ContainerName }
-                                        } -Unique
-
-                <#
                     If we should run tests in one or more Docker Windows containers,
                     then those should be kicked off first.
                 #>
-                if ($testContainer)
+                if ($testObjectUsingContainer)
                 {
+                    $testContainer = @()
+
+                    <#
+                        Get unique container names with the corresponding container image.
+                        Using an expression to be able to sort the array of hash tables.
+                    #>
+                    $uniqueContainersFromTestObjects = $testObjectUsingContainer |
+                        Sort-Object -Property @{
+                            Expression = { $_.ContainerName }
+                        } -Unique
+
+                    # Build all container objects
+                    foreach ($uniqueContainer in $uniqueContainersFromTestObjects)
+                    {
+                        $testContainer += @(
+                            [PSCustomObject] @{
+                                ContainerName = $uniqueContainer.ContainerName
+                                ContainerImage = $uniqueContainer.ContainerImage
+                                ContainerIdentifier = $null
+                                PesterResult = $null
+                                TranscriptPath = $null
+                            }
+                        )
+                    }
+
                     # Import the module containing the container helper functions.
                     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'DscResource.Container')
 
@@ -601,7 +617,7 @@ function Invoke-AppveyorTestScriptTask
                     If we ran unit test in a Docker Windows container, then
                     we need to wait for the container to finish running tests.
                 #>
-                if ($testContainer)
+                if ($testContainer.Count -gt 0)
                 {
                     foreach ($currentContainer in $testContainer)
                     {
@@ -625,7 +641,7 @@ function Invoke-AppveyorTestScriptTask
                             # Upload the Docker Windows container log.
                             $containerDockerLogFileName = '{0}-DockerLog.txt' -f $currentContainer.ContainerName
                             $containerDockerLogPath = Join-Path -Path $env:APPVEYOR_BUILD_FOLDER -ChildPath $containerDockerLogFileName
-                            $containerErrorObject | Out-File -FilePath $containerDockerLogPath -Encoding ascii
+                            $containerErrorObject | Out-File -FilePath $containerDockerLogPath -Encoding ascii -Force
                             Push-TestArtifact -Path $containerDockerLogPath
 
                             Write-Warning -Message ('The container named ''{0}'' failed with exit code {1}. See artifact ''{2}'' for the logs. Throwing the error reported by Docker (in the log output):' -f $currentContainer.ContainerName, $containerExitCode, $containerDockerLogFileName)
@@ -655,18 +671,18 @@ function Invoke-AppveyorTestScriptTask
                             Get the <container>_Transcript.txt from the container
                             and upload it as an artifact.
                         #>
-                        $containerTestsTranscriptFilePath = Join-Path `
+                        $currentContainer.TranscriptPath = Join-Path `
                             -Path $env:APPVEYOR_BUILD_FOLDER `
                             -ChildPath ('{0}_Transcript.txt' -f $currentContainer.ContainerName)
 
                         $copyItemFromContainerParameters = @{
                             ContainerIdentifier = $currentContainer.ContainerIdentifier
-                            Path = $containerTestsTranscriptFilePath
+                            Path = $currentContainer.TranscriptPath
                             Destination = $env:APPVEYOR_BUILD_FOLDER
                         }
 
                         Copy-ItemFromContainer @copyItemFromContainerParameters
-                        Push-TestArtifact -Path $containerTestsTranscriptFilePath
+                        Push-TestArtifact -Path $currentContainer.TranscriptPath
 
                         <#
                             Get the <container>TestsResults.xml from the container
@@ -694,11 +710,11 @@ function Invoke-AppveyorTestScriptTask
 
                         Write-Info -Message ('Start listing test results from container named ''{0}''.' -f $currentContainer.ContainerName)
 
-                        $containerPesterResult = Get-Content -Path $containerTestsResultsJsonPath | ConvertFrom-Json
+                        $currentContainer.PesterResult = Get-Content -Path $containerTestsResultsJsonPath | ConvertFrom-Json
 
                         # Output the final unit test results.
                         $outTestResultParameters = @{
-                            TestResult = $containerPesterResult.TestResult
+                            TestResult = $currentContainer.PesterResult.TestResult
                             WaitForAppVeyorConsole = $true
                             Timeout = 5
                         }
@@ -709,7 +725,7 @@ function Invoke-AppveyorTestScriptTask
                         if ($CodeCoverage.IsPresent)
                         {
                             $outMissedCommandParameters = @{
-                                MissedCommand = $containerPesterResult.CodeCoverage.MissedCommands
+                                MissedCommand = $currentContainer.PesterResult.CodeCoverage.MissedCommands
                                 WaitForAppVeyorConsole = $true
                                 Timeout = 5
                             }
@@ -760,9 +776,13 @@ function Invoke-AppveyorTestScriptTask
 
     $pesterTestResult = $results.TestResult
 
-    if ($RunInContainer.IsPresent)
+    # If tests were run in a container, add those Pester results as well.
+    if ($testContainer.Count -gt 0)
     {
-        $pesterTestResult += $containerPesterResult.TestResult
+        foreach ($currentContainer in $testContainer)
+        {
+            $pesterTestResult += $currentContainer.PesterResult.TestResult
+        }
     }
 
     foreach ($result in $pesterTestResult)
@@ -809,22 +829,29 @@ function Invoke-AppveyorTestScriptTask
             $entireCodeCoverage = $results.CodeCoverage
 
             # Check whether we run in a container, and the build worker reported coverage
-            if ($RunInContainer.IsPresent -and $entireCodeCoverage)
+            if ($testContainer.Count -gt 0)
             {
-                # Concatenate the code coverage result from the container test run.
-                $containerCodeCoverage = $containerPesterResult.CodeCoverage
-                $entireCodeCoverage.NumberOfCommandsAnalyzed += $containerCodeCoverage.NumberOfCommandsAnalyzed
-                $entireCodeCoverage.NumberOfFilesAnalyzed += $containerCodeCoverage.NumberOfFilesAnalyzed
-                $entireCodeCoverage.NumberOfCommandsExecuted += $containerCodeCoverage.NumberOfCommandsExecuted
-                $entireCodeCoverage.NumberOfCommandsMissed += $containerCodeCoverage.NumberOfCommandsMissed
-                $entireCodeCoverage.MissedCommands += $containerCodeCoverage.MissedCommands
-                $entireCodeCoverage.HitCommands += $containerCodeCoverage.HitCommands
-                $entireCodeCoverage.AnalyzedFiles += $containerCodeCoverage.AnalyzedFiles
-            }
-            elseif ($RunInContainer.IsPresent)
-            {
-                # The container was the only one reporting code coverage.
-                $entireCodeCoverage = $containerPesterResult.CodeCoverage
+                # Loop thru each container result and add it to the main coverage.
+                foreach ($currentContainer in $testContainer)
+                {
+                    if ($entireCodeCoverage)
+                    {
+                        # Concatenate the code coverage result from the container test run.
+                        $containerCodeCoverage = $currentContainer.PesterResult.CodeCoverage
+                        $entireCodeCoverage.NumberOfCommandsAnalyzed += $containerCodeCoverage.NumberOfCommandsAnalyzed
+                        $entireCodeCoverage.NumberOfFilesAnalyzed += $containerCodeCoverage.NumberOfFilesAnalyzed
+                        $entireCodeCoverage.NumberOfCommandsExecuted += $containerCodeCoverage.NumberOfCommandsExecuted
+                        $entireCodeCoverage.NumberOfCommandsMissed += $containerCodeCoverage.NumberOfCommandsMissed
+                        $entireCodeCoverage.MissedCommands += $containerCodeCoverage.MissedCommands
+                        $entireCodeCoverage.HitCommands += $containerCodeCoverage.HitCommands
+                        $entireCodeCoverage.AnalyzedFiles += $containerCodeCoverage.AnalyzedFiles
+                    }
+                    else
+                    {
+                        # The container was the first to reporting code coverage.
+                        $entireCodeCoverage = $currentContainer.PesterResult.CodeCoverage
+                    }
+                }
             }
 
             if ($entireCodeCoverage)
@@ -851,10 +878,16 @@ function Invoke-AppveyorTestScriptTask
 
     $pesterFailedCount = $results.FailedCount
 
-    if ($RunInContainer -and $containerPesterResult.FailedCount)
+    if ($testContainer.Count -gt 0)
     {
-        Write-Warning -Message ('The tests that ran in the container named ''{0}'' report errors. Please look at the artifact ''{1}'' for more detailed errors.' -f $containerName, $testsTranscriptFileName)
-        $pesterFailedCount += $containerPesterResult.FailedCount
+        foreach ($currentContainer in $testContainer)
+        {
+            if ($currentContainer.PesterResult.FailedCount)
+            {
+                Write-Warning -Message ('The tests that ran in the container named ''{0}'' report errors. Please look at the artifact ''{1}'' for more detailed errors.' -f $currentContainer.ContainerName, (Split-Path -Path $currentContainer.TranscriptPath -Leaf))
+                $pesterFailedCount += $currentContainer.PesterResult.FailedCount
+            }
+        }
     }
 
     if ($pesterFailedCount -gt 0)
