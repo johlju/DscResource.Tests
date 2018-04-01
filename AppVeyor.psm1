@@ -326,13 +326,20 @@ function Invoke-AppveyorTestScriptTask
                 #>
                 $testObjects = @()
 
-                # Add all tests to the array with order number set to $null.
+                <#
+                    Add all tests to the $testObjects array with properties set
+                    to $null.
+                    This array will be used to run tests in order and the correct
+                    container if specified.
+                #>
                 foreach ($testFile in $testFiles)
                 {
                     $testObjects += @(
                         [PSCustomObject] @{
                             TestPath = $testFile.FullName
                             OrderNumber = $null
+                            ContainerName = $null
+                            ContainerImage = $null
                         }
                     )
                 }
@@ -347,35 +354,22 @@ function Invoke-AppveyorTestScriptTask
                     $_.OrderNumber = 0
                 }
 
-                # Get each integration test config files ('*.config.ps1').
-                $getChildItemParameters['Filter'] = '*.config.ps1'
-                $integrationTestConfigurationFiles = Get-ChildItem @getChildItemParameters
-
                 <#
-                    In each file, search for existens of attribute 'IntegrationTest' with a
-                    named attribute argument 'OrderNumber'.
+                    In each file, search for existens of attribute 'IntegrationTest'
+                    or 'UnitTest' with named attribute arguments.
                 #>
-                foreach ($integrationTestConfigurationFile in $integrationTestConfigurationFiles)
+                foreach ($testObject in $testObjects)
                 {
-                    $orderNumber = Get-DscIntegrationTestOrderNumber `
-                        -Path $integrationTestConfigurationFile.FullName
-
-                    if ($orderNumber)
+                    # Only check for order number if it is an integration test.
+                    if ($testObject.TestPath -match '\.Integration\.')
                     {
-                        <#
-                            Build the correct integration test file name, by
-                            replacing '.config.ps1' with '.Integration.Tests.ps1'.
-                        #>
-                        $testFileName = $integrationTestConfigurationFile.FullName `
-                            -replace '.config.ps1', '.Integration.Tests.ps1'
+                        $orderNumber = Get-DscIntegrationTestOrderNumber `
+                            -Path $testObject.TestPath
 
-                        <#
-                            If the test must run in order, find the correct
-                            test and add the order number to object in the array..
-                        #>
-                        ($testObjects | Where-Object -FilterScript {
-                            $_.TestPath -eq $testFileName
-                        }).OrderNumber = $orderNumber
+                        if ($orderNumber)
+                        {
+                            $testObject.OrderNumber = $orderNumber
+                        }
                     }
                 }
 

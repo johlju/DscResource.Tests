@@ -347,7 +347,7 @@ To run integration tests in order, the resource module must opt-in by calling
 helper function `Invoke-AppveyorTestScriptTask` using the switch parameter
 `-RunTestInOrder`.
 
-Also, each integration test configuration file ('*.config.ps1') must be decorated
+Also, each integration test file ('*.Integration.Tests.ps1') must be decorated
 with an attribute `Microsoft.DscResourceKit.IntegrationTest` containing a named
 attribute argument 'OrderNumber' and be assigned a numeric value
 (`1`, `2`, `3`,..).
@@ -359,32 +359,13 @@ value 1 will be run before integration tests with value 2. If an integration tes
 does not have a assigned order, it will be run unordered after all ordered tests
 have been run.
 
-It is also important that the configuration file and the integration test uses
-the same resource name in the file name. For example and integration test for
-SqlSetup has a configuration file named 'MSFT_SqlSetup.config.ps1'
-and the integration test file is named 'MSFT_SqlSetup.Integration.Tests.ps1'.
-
-Example showing how the configuration file could look like to make sure an
+Example showing how the integration test file could look like to make sure an
 integration test is always run as one of the first integration tests.
+This should be put a the top of the integration test script file.
 
 ```powershell
 [Microsoft.DscResourceKit.IntegrationTest(OrderNumber = 1)]
 param()
-
-Configuration MSFT_SqlAlwaysOnService_EnableAlwaysOn_Config
-{
-    Import-DscResource -ModuleName 'SqlServerDsc'
-
-    node localhost {
-        SqlAlwaysOnService 'Integration_Test'
-        {
-            Ensure               = 'Present'
-            SQLServer            = $Node.ComputerName
-            SQLInstanceName      = $Node.InstanceName
-            RestartTimeout       = $Node.RestartTimeout
-        }
-    }
-}
 ```
 
 ## Run unit tests in a Docker Windows container
@@ -580,6 +561,15 @@ These are the artifacts that differ when running tests using a container.
   so that it is possible to change the color of the text that is written.
 * Added module DscResource.Container which contain logic to handle the container
   testing when unit tests are run in a Docker Windows container.
+* Added new helper function Get-DscTestContainerInformation to read the container
+  information in a particular PowerShell script test file (.Tests.ps1).
+* BREAKING CHANGE: For those repositories that are using `-RunTestInOrder` the
+  decoration `[Microsoft.DscResourceKit.IntegrationTest(OrderNumber = 1)]` need
+  to move from the configuration file to the test file. This was done since unit
+  tests does not have configuration files, and also to align the ability to
+  define the order and the container information using the same decoration.
+  It is also natural to have the decoration in the test files since those are
+  the scripts that are actually run in order.
 
 ### 0.2.0.0
 

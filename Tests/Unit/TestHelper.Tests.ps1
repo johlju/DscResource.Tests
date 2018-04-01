@@ -10,6 +10,7 @@ InModuleScope $script:ModuleName {
             $filePath_NoAttribute = Join-Path -Path $TestDrive -ChildPath 'NoAttribute.ps1'
             $filePath_WrongAttribute = Join-Path -Path $TestDrive -ChildPath 'WrongAttribute.ps1'
             $filePath_CorrectAttribute = Join-Path -Path $TestDrive -ChildPath 'CorrectAttribute.ps1'
+            $filePath_CorrectAttributeWithExtraNamedArgument = Join-Path -Path $TestDrive -ChildPath 'CorrectAttributeWithExtraNamedArgument.ps1'
 
             '
             param()
@@ -24,6 +25,12 @@ InModuleScope $script:ModuleName {
             [Microsoft.DscResourceKit.IntegrationTest(OrderNumber = 2)]
             param()
             ' | Out-File -FilePath $filePath_CorrectAttribute
+
+            '
+            [Microsoft.DscResourceKit.IntegrationTest(OrderNumber = 2, UnknownParameter = ''Test'')]
+            param()
+            ' | Out-File -FilePath $filePath_CorrectAttributeWithExtraNamedArgument
+
         }
 
         Context 'When configuration file does not contain a attribute' {
@@ -43,6 +50,13 @@ InModuleScope $script:ModuleName {
         Context 'When configuration file does contain a attribute and with the correct named attribute argument' {
             It 'Should not return any value' {
                 $result = Get-DscIntegrationTestOrderNumber -Path $filePath_CorrectAttribute
+                $result | Should -BeExactly 2
+            }
+        }
+
+        Context 'When configuration file does contain a attribute and with the correct named attribute argument, and there are also another named argument' {
+            It 'Should not return any value' {
+                $result = Get-DscIntegrationTestOrderNumber -Path $filePath_CorrectAttributeWithExtraNamedArgument
                 $result | Should -BeExactly 2
             }
         }
