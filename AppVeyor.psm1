@@ -581,7 +581,7 @@ function Invoke-AppveyorTestScriptTask
                     $null -eq $_.ContainerName `
                     -and $_.OrderNumber -gt 0 `
                     -and $_.TestPath -match 'Integration.Tests'
-                } | Sort-Object -Property 'OrderNumber'               }
+                } | Sort-Object -Property 'OrderNumber'
 
                 <#
                     Finally add integration tests that can run unordered.
