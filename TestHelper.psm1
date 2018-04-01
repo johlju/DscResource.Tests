@@ -1365,6 +1365,15 @@ function Get-DscIntegrationTestOrderNumber
         A path to the test file (.Tests.ps1) to search for the attribute
         'Microsoft.DscResourceKit.IntegrationTest' or
         'Microsoft.DscResourceKit.UnitTest'.
+
+    .OUTPUTS
+        Returns a hash table containing container name and the container image
+        name, or $null if neither attribute could be found.
+
+        @{
+            ContainerName = [System.String or $null]
+            ContainerImage = [System.String or $null]
+        }
 #>
 function Get-DscTestContainerInformation
 {

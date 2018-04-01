@@ -318,7 +318,7 @@ function Invoke-AppveyorTestScriptTask
                 }
             }
 
-            if ($RunTestInOrder)
+            if ($RunTestInOrder.IsPresent)
             {
                 <#
                     This is an array of test files containing path
@@ -370,6 +370,21 @@ function Invoke-AppveyorTestScriptTask
                         {
                             $testObject.OrderNumber = $orderNumber
                         }
+                    }
+
+                    $containerInformation = Get-DscTestContainerInformation `
+                        -Path $testObject.TestPath
+
+                    if ($containerInformation)
+                    {
+                        $testObject.ContainerName = $containerInformation.ContainerName
+                        $testObject.ContainerImage = $containerInformation.ContainerImage
+
+                        Write-Verbose `
+                            -Message (
+                                'Found test ''{0}'' wanting to use container name ''{1}'' with image ''{2}''' `
+                                -f $testObject.TestPath, $testObject.ContainerName, $testObject.ContainerImage) `
+                            -Verbose
                     }
                 }
 
