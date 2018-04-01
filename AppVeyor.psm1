@@ -258,9 +258,11 @@ function Invoke-AppveyorTestScriptTask
             }
 
             <#
-                Only add CodeCoverage parameter at this point if we are not running
-                unit tests in a container. If unit tests are running in a container
-                then the container logic will handle this.
+                The CodeCoverage parameter here is used for the tests that are
+                run by the build worker. If the container testing functionality
+                is used, with parameter 'RunTestInOrder', then the container
+                logic will handle the files used for a correct CodeCoverage for
+                the tests run in the build worker.
             #>
             if ($CodeCoverage)
             {
@@ -334,7 +336,6 @@ function Invoke-AppveyorTestScriptTask
                             OrderNumber = $null
                             ContainerName = $null
                             ContainerImage = $null
-                            ContainerIdentifier = $null
                         }
                     )
                 }
@@ -415,14 +416,9 @@ function Invoke-AppveyorTestScriptTask
                 {
                     $testContainer = @()
 
-                    <#
-                        Get unique container names with the corresponding container image.
-                        Using an expression to be able to sort the array of hash tables.
-                    #>
+                    # Get unique container names with the corresponding container image.
                     $uniqueContainersFromTestObjects = $testObjectUsingContainer |
-                        Sort-Object -Property @{
-                            Expression = { $_.ContainerName }
-                        } -Unique
+                        Sort-Object -Property 'ContainerName' -Unique
 
                     # Build all container objects
                     foreach ($uniqueContainer in $uniqueContainersFromTestObjects)
@@ -456,9 +452,7 @@ function Invoke-AppveyorTestScriptTask
                         #>
                         $containerTestObjectOrder = $testObjectUsingContainer | Where-Object -FilterScript {
                             $_.ContainerName -eq $currentContainer.ContainerName
-                        } | Sort-Object -Property @{
-                            Expression = { $_.OrderNumber }
-                        }
+                        } | Sort-Object -Property 'OrderNumber'
 
                         $containerName = $currentContainer.ContainerName
                         $newContainerParameters = @{
@@ -568,7 +562,7 @@ function Invoke-AppveyorTestScriptTask
                 $testObjectOrder += $testObjects | Where-Object -FilterScript {
                     $null -eq $_.OrderNumber `
                     -and $null -eq $_.ContainerName `
-                    -and $_.TestPath -notmatch 'Integration.Tests'
+                    -and $_.TestPath -notmatch 'Integration\.Tests'
                 }
 
                 <#
@@ -580,7 +574,7 @@ function Invoke-AppveyorTestScriptTask
                 $testObjectOrder += $testObjects | Where-Object -FilterScript {
                     $null -eq $_.ContainerName `
                     -and $_.OrderNumber -gt 0 `
-                    -and $_.TestPath -match 'Integration.Tests'
+                    -and $_.TestPath -match 'Integration\.Tests'
                 } | Sort-Object -Property 'OrderNumber'
 
                 <#
@@ -592,7 +586,7 @@ function Invoke-AppveyorTestScriptTask
                 $testObjectOrder += $testObjects | Where-Object -FilterScript {
                     $null -eq $_.OrderNumber `
                     -and $null -eq $_.ContainerName `
-                    -and $_.TestPath -match 'Integration.Tests'
+                    -and $_.TestPath -match 'Integration\.Tests'
                 }
 
                 # Add all the paths to the Invoke-Pester Path parameter.
