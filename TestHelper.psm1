@@ -1659,5 +1659,6 @@ Export-ModuleMember -Function @(
     'Test-IsRepositoryDscResourceTests',
     'Set-PSModulePath',
     'Write-Info',
-    'Get-LocalizedData'
+    'Get-LocalizedData',
+    'Get-DscTestContainerInformation'
 )
