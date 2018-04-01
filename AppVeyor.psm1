@@ -407,24 +407,24 @@ function Invoke-AppveyorTestScriptTask
                 }
 
                 <#
+                    Get unique container names with the corresponding container image.
+                    Using an expression to be able to sort the array of hash tables.
+                #>
+                $testContainer = $testObjectUsingContainer |
+                                        Sort-Object -Property @{
+                                            Expression = { $_.ContainerName }
+                                        } -Unique
+
+                <#
                     If we should run tests in one or more Docker Windows containers,
                     then those should be kicked off first.
                 #>
-                if ($testObjectUsingContainer)
+                if ($testContainer)
                 {
                     # Import the module containing the container helper functions.
                     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'DscResource.Container')
 
                     Write-Info -Message 'Using one or more Docker Windows container to run tests.'
-
-                    <#
-                        Get unique container names with the corresponding container image.
-                        Using an expression to be able to sort the array of hash tables.
-                    #>
-                    $testContainer = $testObjectUsingContainer |
-                                            Sort-Object -Property @{
-                                                Expression = { $_.ContainerName }
-                                            } -Unique
 
                     foreach ($currentContainer in $testContainer)
                     {
@@ -506,7 +506,11 @@ function Invoke-AppveyorTestScriptTask
                             $pesterParameters['CodeCoverage'] = $moduleFile.FullName
                         }
 
-                        $containerIdentifier = New-Container @newContainerParameters
+                        <#
+                            Create the new Docker container and assign the identifier
+                            to the hash table object.
+                        #>
+                        $currentContainer['ContainerIdentifier'] = New-Container @newContainerParameters
 
                         <#
                             This will always start the container. If for some reason
@@ -523,7 +527,7 @@ function Invoke-AppveyorTestScriptTask
                             we assume that the container will always be able to start
                             the task successfully.
                         #>
-                        Start-Container -ContainerIdentifier $containerIdentifier | Out-Null
+                        Start-Container -ContainerIdentifier $currentContainer.ContainerIdentifier | Out-Null
 
                         <#
                             If we run in a container then the result file that is
@@ -596,121 +600,124 @@ function Invoke-AppveyorTestScriptTask
                     If we ran unit test in a Docker Windows container, then
                     we need to wait for the container to finish running tests.
                 #>
-                if ($RunInContainer.IsPresent)
+                if ($testContainer)
                 {
-                    $waitContainerParameters = @{
-                        ContainerIdentifier = $containerIdentifier
-
-                        <#
-                            Wait 1 hour for the container to finish the tests.
-                            If the container has not returned before that time,
-                            the test will fail.
-                        #>
-                        Timeout = 3600
-                    }
-
-                    $containerExitCode = Wait-Container @waitContainerParameters
-
-                    if ($containerExitCode -ne 0)
+                    foreach ($currentContainer in $testContainer)
                     {
-                        $containerErrorObject = Get-ContainerLog -ContainerIdentifier $containerIdentifier
+                        $waitContainerParameters = @{
+                            ContainerIdentifier = $currentContainer.ContainerIdentifier
 
-                        # Upload the Docker Windows container log.
-                        $containerDockerLogFileName = '{0}-DockerLog.txt' -f $containerName
-                        $containerDockerLogPath = Join-Path -Path $env:APPVEYOR_BUILD_FOLDER -ChildPath $containerDockerLogFileName
-                        $containerErrorObject | Out-File -FilePath $containerDockerLogPath -Encoding ascii
-                        Push-TestArtifact -Path $containerDockerLogPath
+                            <#
+                                Wait 1 hour for the container to finish the tests.
+                                If the container has not returned before that time,
+                                the test will fail.
+                            #>
+                            Timeout = 3600
+                        }
 
-                        Write-Warning -Message ('The container named ''{0}'' failed with exit code {1}. See artifact ''{2}'' for the logs. Throwing the error reported by Docker (in the log output):' -f $containerName, $containerExitCode, $containerDockerLogFileName)
+                        $containerExitCode = Wait-Container @waitContainerParameters
+
+                        if ($containerExitCode -ne 0)
+                        {
+                            $containerErrorObject = Get-ContainerLog -ContainerIdentifier $containerIdentifier
+
+                            # Upload the Docker Windows container log.
+                            $containerDockerLogFileName = '{0}-DockerLog.txt' -f $containerName
+                            $containerDockerLogPath = Join-Path -Path $env:APPVEYOR_BUILD_FOLDER -ChildPath $containerDockerLogFileName
+                            $containerErrorObject | Out-File -FilePath $containerDockerLogPath -Encoding ascii
+                            Push-TestArtifact -Path $containerDockerLogPath
+
+                            Write-Warning -Message ('The container named ''{0}'' failed with exit code {1}. See artifact ''{2}'' for the logs. Throwing the error reported by Docker (in the log output):' -f $containerName, $containerExitCode, $containerDockerLogFileName)
+
+                            <#
+                                Loop thru the output and throw if PowerShell, that was
+                                started in the container, returned an error record.
+                                All other other output is ignored (sent to Out-Null).
+                            #>
+                            $containerErrorObject | ForEach-Object -Process {
+                                if ($_ -is [System.Management.Automation.ErrorRecord])
+                                {
+                                    throw $_
+                                }
+                            } | Out-Null
+
+                            <#
+                                No error record was found that could be thrown above.
+                                Write a warning that we couldn't find an error.
+                            #>
+                            Write-Warning -Message 'Container exited with an error, but no error record was found in the container log, so the error could not be caught.'
+                        }
+
+                        Write-Info -Message ('Container named ''{0}'' has finish running tests.' -f $containerName)
 
                         <#
-                            Loop thru the output and throw if PowerShell, that was
-                            started in the container, returned an error record.
-                            All other other output is ignored (sent to Out-Null).
+                            Get the <container>_Transcript.txt from the container
+                            and upload it as an artifact.
                         #>
-                        $containerErrorObject | ForEach-Object -Process {
-                            if ($_ -is [System.Management.Automation.ErrorRecord])
-                            {
-                                throw $_
-                            }
-                        } | Out-Null
+                        $containerTestsTranscriptFilePath = Join-Path `
+                            -Path $env:APPVEYOR_BUILD_FOLDER `
+                            -ChildPath ('{0}_Transcript.txt' -f $containerName)
+
+                        $copyItemFromContainerParameters = @{
+                            ContainerIdentifier = $containerIdentifier
+                            Path = $containerTestsTranscriptFilePath
+                            Destination = $env:APPVEYOR_BUILD_FOLDER
+                        }
+
+                        Copy-ItemFromContainer @copyItemFromContainerParameters
+                        Push-TestArtifact -Path $containerTestsTranscriptFilePath
 
                         <#
-                            No error record was found that could be thrown above.
-                            Write a warning that we couldn't find an error.
+                            Get the <container>TestsResults.xml from the container
+                            and upload it as an artifact.
                         #>
-                        Write-Warning -Message 'Container exited with an error, but no error record was found in the container log, so the error could not be caught.'
-                    }
+                        $containerTestsResultsFilePath = Join-Path `
+                            -Path $env:APPVEYOR_BUILD_FOLDER `
+                            -ChildPath ('{0}_TestsResults.xml' -f $containerName)
 
-                    Write-Info -Message ('Container named ''{0}'' has finish running tests.' -f $containerName)
+                        $copyItemFromContainerParameters['Path'] = $containerTestsResultsFilePath
+                        Copy-ItemFromContainer @copyItemFromContainerParameters
+                        Push-TestArtifact -Path $containerTestsResultsFilePath
 
-                    <#
-                        Get the <container>_Transcript.txt from the container
-                        and upload it as an artifact.
-                    #>
-                    $containerTestsTranscriptFilePath = Join-Path `
-                        -Path $env:APPVEYOR_BUILD_FOLDER `
-                        -ChildPath ('{0}_Transcript.txt' -f $containerName)
+                        <#
+                            Get the <container>TestsResults.json from the container
+                            and upload it as an artifact.
+                        #>
+                        $containerTestsResultsJsonPath = Join-Path `
+                            -Path $env:APPVEYOR_BUILD_FOLDER `
+                            -ChildPath ('{0}_TestsResults.json' -f $containerName)
 
-                    $copyItemFromContainerParameters = @{
-                        ContainerIdentifier = $containerIdentifier
-                        Path = $containerTestsTranscriptFilePath
-                        Destination = $env:APPVEYOR_BUILD_FOLDER
-                    }
+                        $copyItemFromContainerParameters['Path'] = $containerTestsResultsJsonPath
+                        Copy-ItemFromContainer @copyItemFromContainerParameters
+                        Push-TestArtifact -Path $containerTestsResultsJsonPath
 
-                    Copy-ItemFromContainer @copyItemFromContainerParameters
-                    Push-TestArtifact -Path $containerTestsTranscriptFilePath
+                        Write-Info -Message ('Start listing test results from container named ''{0}''.' -f $containerName)
 
-                    <#
-                        Get the <container>TestsResults.xml from the container
-                        and upload it as an artifact.
-                    #>
-                    $containerTestsResultsFilePath = Join-Path `
-                        -Path $env:APPVEYOR_BUILD_FOLDER `
-                        -ChildPath ('{0}_TestsResults.xml' -f $containerName)
+                        $containerPesterResult = Get-Content -Path $containerTestsResultsJsonPath | ConvertFrom-Json
 
-                    $copyItemFromContainerParameters['Path'] = $containerTestsResultsFilePath
-                    Copy-ItemFromContainer @copyItemFromContainerParameters
-                    Push-TestArtifact -Path $containerTestsResultsFilePath
-
-                    <#
-                        Get the <container>TestsResults.json from the container
-                        and upload it as an artifact.
-                    #>
-                    $containerTestsResultsJsonPath = Join-Path `
-                        -Path $env:APPVEYOR_BUILD_FOLDER `
-                        -ChildPath ('{0}_TestsResults.json' -f $containerName)
-
-                    $copyItemFromContainerParameters['Path'] = $containerTestsResultsJsonPath
-                    Copy-ItemFromContainer @copyItemFromContainerParameters
-                    Push-TestArtifact -Path $containerTestsResultsJsonPath
-
-                    Write-Info -Message ('Start listing test results from container named ''{0}''.' -f $containerName)
-
-                    $containerPesterResult = Get-Content -Path $containerTestsResultsJsonPath | ConvertFrom-Json
-
-                    # Output the final unit test results.
-                    $outTestResultParameters = @{
-                        TestResult = $containerPesterResult.TestResult
-                        WaitForAppVeyorConsole = $true
-                        Timeout = 5
-                    }
-
-                    Out-TestResult @outTestResultParameters
-
-                    # Output the missed commands when code coverage is used.
-                    if ($CodeCoverage.IsPresent)
-                    {
-                        $outMissedCommandParameters = @{
-                            MissedCommand = $containerPesterResult.CodeCoverage.MissedCommands
+                        # Output the final unit test results.
+                        $outTestResultParameters = @{
+                            TestResult = $containerPesterResult.TestResult
                             WaitForAppVeyorConsole = $true
                             Timeout = 5
                         }
 
-                        Out-MissedCommand @outMissedCommandParameters
-                    }
+                        Out-TestResult @outTestResultParameters
 
-                    Write-Info -Message ('End of test results from container named ''{0}''.' -f $containerName)
+                        # Output the missed commands when code coverage is used.
+                        if ($CodeCoverage.IsPresent)
+                        {
+                            $outMissedCommandParameters = @{
+                                MissedCommand = $containerPesterResult.CodeCoverage.MissedCommands
+                                WaitForAppVeyorConsole = $true
+                                Timeout = 5
+                            }
+
+                            Out-MissedCommand @outMissedCommandParameters
+                        }
+
+                        Write-Info -Message ('End of test results from container named ''{0}''.' -f $containerName)
+                    }
                 }
             }
             else
