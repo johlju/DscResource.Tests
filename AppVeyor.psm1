@@ -545,7 +545,7 @@ function Invoke-AppveyorTestScriptTask
                 #>
                 $testObjectOrder += $testObjects | Where-Object -FilterScript {
                     $null -eq $_.ContainerName `
-                    -and $_.OrderNumber -gt 0
+                    -and $_.OrderNumber -gt 0 `
                     -and $_.TestPath -match 'Integration.Tests'
                 } | Sort-Object -Property 'OrderNumber'
 
