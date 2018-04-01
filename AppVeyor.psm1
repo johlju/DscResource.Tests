@@ -437,7 +437,7 @@ function Invoke-AppveyorTestScriptTask
                             container, also sorts the tests in the correct order
                             if any has been set to run in specific order.
                         #>
-                        $containerTestObjectOrder += $testObjectUsingContainer | Where-Object -FilterScript {
+                        $containerTestObjectOrder = $testObjectUsingContainer | Where-Object -FilterScript {
                             $_.ContainerName -eq $currentContainer.ContainerName
                         } | Sort-Object -Property @{
                             Expression = { $_.OrderNumber }
