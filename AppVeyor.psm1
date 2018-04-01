@@ -262,7 +262,7 @@ function Invoke-AppveyorTestScriptTask
                 unit tests in a container. If unit tests are running in a container
                 then the container logic will handle this.
             #>
-            if ($CodeCoverage -and -not $RunInContainer.IsPresent)
+            if ($CodeCoverage)
             {
                 Write-Warning -Message 'Code coverage statistics are being calculated. This will slow the start of the tests while the code matrix is built. Please be patient.'
 
@@ -581,9 +581,7 @@ function Invoke-AppveyorTestScriptTask
                     $null -eq $_.ContainerName `
                     -and $_.OrderNumber -gt 0 `
                     -and $_.TestPath -match 'Integration.Tests'
-                } | Sort-Object -Property @{
-                    Expression = { $_.OrderNumber }
-                }
+                } | Sort-Object -Property 'OrderNumber'               }
 
                 <#
                     Finally add integration tests that can run unordered.
