@@ -620,15 +620,15 @@ function Invoke-AppveyorTestScriptTask
 
                         if ($containerExitCode -ne 0)
                         {
-                            $containerErrorObject = Get-ContainerLog -ContainerIdentifier $containerIdentifier
+                            $containerErrorObject = Get-ContainerLog -ContainerIdentifier $currentContainer.ContainerIdentifier
 
                             # Upload the Docker Windows container log.
-                            $containerDockerLogFileName = '{0}-DockerLog.txt' -f $containerName
+                            $containerDockerLogFileName = '{0}-DockerLog.txt' -f $currentContainer.ContainerName
                             $containerDockerLogPath = Join-Path -Path $env:APPVEYOR_BUILD_FOLDER -ChildPath $containerDockerLogFileName
                             $containerErrorObject | Out-File -FilePath $containerDockerLogPath -Encoding ascii
                             Push-TestArtifact -Path $containerDockerLogPath
 
-                            Write-Warning -Message ('The container named ''{0}'' failed with exit code {1}. See artifact ''{2}'' for the logs. Throwing the error reported by Docker (in the log output):' -f $containerName, $containerExitCode, $containerDockerLogFileName)
+                            Write-Warning -Message ('The container named ''{0}'' failed with exit code {1}. See artifact ''{2}'' for the logs. Throwing the error reported by Docker (in the log output):' -f $currentContainer.ContainerName, $containerExitCode, $containerDockerLogFileName)
 
                             <#
                                 Loop thru the output and throw if PowerShell, that was
@@ -649,7 +649,7 @@ function Invoke-AppveyorTestScriptTask
                             Write-Warning -Message 'Container exited with an error, but no error record was found in the container log, so the error could not be caught.'
                         }
 
-                        Write-Info -Message ('Container named ''{0}'' has finish running tests.' -f $containerName)
+                        Write-Info -Message ('Container named ''{0}'' has finish running tests.' -f $currentContainer.ContainerName)
 
                         <#
                             Get the <container>_Transcript.txt from the container
@@ -657,10 +657,10 @@ function Invoke-AppveyorTestScriptTask
                         #>
                         $containerTestsTranscriptFilePath = Join-Path `
                             -Path $env:APPVEYOR_BUILD_FOLDER `
-                            -ChildPath ('{0}_Transcript.txt' -f $containerName)
+                            -ChildPath ('{0}_Transcript.txt' -f $currentContainer.ContainerName)
 
                         $copyItemFromContainerParameters = @{
-                            ContainerIdentifier = $containerIdentifier
+                            ContainerIdentifier = $currentContainer.ContainerIdentifier
                             Path = $containerTestsTranscriptFilePath
                             Destination = $env:APPVEYOR_BUILD_FOLDER
                         }
@@ -674,7 +674,7 @@ function Invoke-AppveyorTestScriptTask
                         #>
                         $containerTestsResultsFilePath = Join-Path `
                             -Path $env:APPVEYOR_BUILD_FOLDER `
-                            -ChildPath ('{0}_TestsResults.xml' -f $containerName)
+                            -ChildPath ('{0}_TestsResults.xml' -f $currentContainer.ContainerName)
 
                         $copyItemFromContainerParameters['Path'] = $containerTestsResultsFilePath
                         Copy-ItemFromContainer @copyItemFromContainerParameters
@@ -686,13 +686,13 @@ function Invoke-AppveyorTestScriptTask
                         #>
                         $containerTestsResultsJsonPath = Join-Path `
                             -Path $env:APPVEYOR_BUILD_FOLDER `
-                            -ChildPath ('{0}_TestsResults.json' -f $containerName)
+                            -ChildPath ('{0}_TestsResults.json' -f $currentContainer.ContainerName)
 
                         $copyItemFromContainerParameters['Path'] = $containerTestsResultsJsonPath
                         Copy-ItemFromContainer @copyItemFromContainerParameters
                         Push-TestArtifact -Path $containerTestsResultsJsonPath
 
-                        Write-Info -Message ('Start listing test results from container named ''{0}''.' -f $containerName)
+                        Write-Info -Message ('Start listing test results from container named ''{0}''.' -f $currentContainer.ContainerName)
 
                         $containerPesterResult = Get-Content -Path $containerTestsResultsJsonPath | ConvertFrom-Json
 
@@ -717,7 +717,7 @@ function Invoke-AppveyorTestScriptTask
                             Out-MissedCommand @outMissedCommandParameters
                         }
 
-                        Write-Info -Message ('End of test results from container named ''{0}''.' -f $containerName)
+                        Write-Info -Message ('End of test results from container named ''{0}''.' -f $currentContainer.ContainerName)
                     }
                 }
             }
