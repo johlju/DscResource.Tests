@@ -230,6 +230,16 @@ function Invoke-AppveyorTestScriptTask
     }
 
     $moduleName = Split-Path -Path $env:APPVEYOR_BUILD_FOLDER -Leaf
+
+    <#
+        Special handling of the repository DscResource.Template since AppVeyor
+         creates the foldername with dash (-) instead of dot ('.').
+    #>
+    if ($moduleName -match 'DscResource-Template')
+    {
+        $moduleName = 'DscResource.Template'
+    }
+
     $testsPath = Join-Path -Path $env:APPVEYOR_BUILD_FOLDER -ChildPath 'Tests'
 
     $configurationFiles = Get-ChildItem -Path $testsPath -Include '*.config.ps1' -Recurse
