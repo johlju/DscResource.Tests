@@ -35,6 +35,15 @@ if (Test-IsRepositoryDscResourceTests)
 else
 {
     $moduleName = (Get-Item -Path $moduleRootFilePath).Name
+
+    <#
+        Special handling of the repository DscResource.Template since AppVeyor
+         creates the foldername with dash (-) instead of dot ('.').
+    #>
+    if ($moduleName -match 'DscResource-Template')
+    {
+        $moduleName = 'DscResource.Template'
+    }
 }
 
 $dscResourcesFolderFilePath = Join-Path -Path $moduleRootFilePath -ChildPath 'DscResources'
