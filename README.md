@@ -698,6 +698,9 @@ These are the artifacts that differ when running tests using a container.
     numeric value followed by a dash will be removed. This is to support
     configurations to be able to compile in Azure Automation, but still support
     auto-documentation.
+* Added support for example and integration tests configuration can compile using
+  a certificate, so that there are no more need for PSDscAllowPlainTextPassword
+  in configurations ([issue #240](https://github.com/PowerShell/DscResource.Tests/issues/240)).
 
 ### 0.2.0.0
 

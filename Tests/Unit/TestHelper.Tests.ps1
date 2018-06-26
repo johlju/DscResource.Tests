@@ -745,8 +745,8 @@ InModuleScope $script:ModuleName {
                 $result.Count | Should -Be 2
 
                 # Uncertain of returned order, so verify so each value is in the array.
-                $result[0] | Should -BeIn @($mofFileType,$psm1FileType)
-                $result[1] | Should -BeIn @($mofFileType,$psm1FileType)
+                $result[0] | Should -BeIn @($mofFileType, $psm1FileType)
+                $result[1] | Should -BeIn @($mofFileType, $psm1FileType)
             }
         }
     }
@@ -952,11 +952,11 @@ InModuleScope $script:ModuleName {
                 @{
                     TestDescription = 'when restoring from a unit test'
                     TestEnvironment = @{
-                        DSCModuleName = 'TestModule'
-                        DSCResourceName = 'TestResource'
-                        TestType = 'Unit'
+                        DSCModuleName      = 'TestModule'
+                        DSCResourceName    = 'TestResource'
+                        TestType           = 'Unit'
                         ImportedModulePath = $moduleToImportFilePath
-                        OldPSModulePath = $env:PSModulePath
+                        OldPSModulePath    = $env:PSModulePath
                         OldExecutionPolicy = Get-ExecutionPolicy
                     }
                 },
@@ -964,11 +964,11 @@ InModuleScope $script:ModuleName {
                 @{
                     TestDescription = 'when restoring from an integration test'
                     TestEnvironment = @{
-                        DSCModuleName = 'TestModule'
-                        DSCResourceName = 'TestResource'
-                        TestType = 'Integration'
+                        DSCModuleName      = 'TestModule'
+                        DSCResourceName    = 'TestResource'
+                        TestType           = 'Integration'
                         ImportedModulePath = $moduleToImportFilePath
-                        OldPSModulePath = $env:PSModulePath
+                        OldPSModulePath    = $env:PSModulePath
                         OldExecutionPolicy = Get-ExecutionPolicy
                     }
                 }
@@ -997,11 +997,11 @@ InModuleScope $script:ModuleName {
         Context 'When restoring the test environment from an integration test that has the wrong PSModulePath' {
             It 'Should restore without throwing' {
                 $testEnvironmentParameter = @{
-                    DSCModuleName = 'TestModule'
-                    DSCResourceName = 'TestResource'
-                    TestType = 'Integration'
+                    DSCModuleName      = 'TestModule'
+                    DSCResourceName    = 'TestResource'
+                    TestType           = 'Integration'
                     ImportedModulePath = $moduleToImportFilePath
-                    OldPSModulePath = 'Wrong path'
+                    OldPSModulePath    = 'Wrong path'
                     OldExecutionPolicy = Get-ExecutionPolicy
                 }
 
@@ -1038,11 +1038,11 @@ InModuleScope $script:ModuleName {
 
             It 'Should restore without throwing' {
                 $testEnvironmentParameter = @{
-                    DSCModuleName = 'TestModule'
-                    DSCResourceName = 'TestResource'
-                    TestType = 'Integration'
+                    DSCModuleName      = 'TestModule'
+                    DSCResourceName    = 'TestResource'
+                    TestType           = 'Integration'
                     ImportedModulePath = $moduleToImportFilePath
-                    OldPSModulePath = $env:PSModulePath
+                    OldPSModulePath    = $env:PSModulePath
                     OldExecutionPolicy = $mockExecutionPolicy
                 }
 
@@ -1079,8 +1079,8 @@ InModuleScope $script:ModuleName {
                 $filePath = Join-Path -Path $TestDrive -ChildPath ('{0}.psd1' -f $mockDscModuleName)
                 'test manifest' | Out-File -FilePath $filePath -Encoding ascii
 
-                $mockDscResourcesPath  = Join-Path -Path $TestDrive -ChildPath 'DSCResources'
-                $mockDscClassResourcesPath  = Join-Path -Path $TestDrive -ChildPath 'DSCClassResources'
+                $mockDscResourcesPath = Join-Path -Path $TestDrive -ChildPath 'DSCResources'
+                $mockDscClassResourcesPath = Join-Path -Path $TestDrive -ChildPath 'DSCClassResources'
                 New-Item -Path $mockDscResourcesPath -ItemType Directory
                 New-Item -Path $mockDscClassResourcesPath -ItemType Directory
 
@@ -1096,17 +1096,17 @@ InModuleScope $script:ModuleName {
 
                 $testCases = @(
                     @{
-                        TestType = 'Unit'
+                        TestType     = 'Unit'
                         ResourceType = 'Mof'
                     },
 
                     @{
-                        TestType = 'Unit'
+                        TestType     = 'Unit'
                         ResourceType = 'Class'
                     },
 
                     @{
-                        TestType = 'Integration'
+                        TestType     = 'Integration'
                         ResourceType = 'Mof'
                     }
                 )
@@ -1127,10 +1127,10 @@ InModuleScope $script:ModuleName {
                 )
 
                 $initializeTestEnvironmentParameters = @{
-                    DSCModuleName = $mockDscModuleName
+                    DSCModuleName   = $mockDscModuleName
                     DSCResourceName = $mockDscResourceName
-                    TestType = $TestType
-                    ResourceType = $ResourceType
+                    TestType        = $TestType
+                    ResourceType    = $ResourceType
                 }
 
                 { Initialize-TestEnvironment @initializeTestEnvironmentParameters } | Should -Not -Throw
@@ -1163,9 +1163,9 @@ InModuleScope $script:ModuleName {
 
             It 'Should throw the correct error' {
                 $initializeTestEnvironmentParameters = @{
-                    DSCModuleName = $mockDscModuleName
+                    DSCModuleName   = $mockDscModuleName
                     DSCResourceName = $mockDscResourceName
-                    TestType = 'Unit'
+                    TestType        = 'Unit'
                 }
 
                 $errorMessage = 'Module manifest could not be found for the module {0} in the root folder {1}' -f $mockDscModuleName, $TestDrive
@@ -1205,7 +1205,7 @@ InModuleScope $script:ModuleName {
 
             It 'Should install module without throwing' {
                 $installModuleFromPowerShellGalleryParameters = @{
-                    ModuleName = 'DummyTestModule'
+                    ModuleName      = 'DummyTestModule'
                     DestinationPath = $TestDrive
                 }
 
@@ -1231,7 +1231,7 @@ InModuleScope $script:ModuleName {
                 $mockModuleName = 'DummyTestModule'
 
                 $installModuleFromPowerShellGalleryParameters = @{
-                    ModuleName = $mockModuleName
+                    ModuleName      = $mockModuleName
                     DestinationPath = $TestDrive
                 }
 
@@ -1261,17 +1261,17 @@ InModuleScope $script:ModuleName {
 
             It 'Should reset the LCM without throwing' {
                 $newNuspecParameters = @{
-                    PackageName = $mockPackageName
-                    Version = $mockVersion
-                    Author = $mockAuthor
-                    Owners = $mockOwners
-                    DestinationPath = $mockDestinationPath
-                    LicenseUrl = $mockLicenseUrl
-                    ProjectUrl = $mockProjectUrl
-                    IconUrl = $mockIconUrl
+                    PackageName        = $mockPackageName
+                    Version            = $mockVersion
+                    Author             = $mockAuthor
+                    Owners             = $mockOwners
+                    DestinationPath    = $mockDestinationPath
+                    LicenseUrl         = $mockLicenseUrl
+                    ProjectUrl         = $mockProjectUrl
+                    IconUrl            = $mockIconUrl
                     PackageDescription = $mockPackageDescription
-                    ReleaseNotes = $mockReleaseNotes
-                    Tags = $mockTags
+                    ReleaseNotes       = $mockReleaseNotes
+                    Tags               = $mockTags
                 }
 
                 { New-Nuspec @newNuspecParameters } | Should -Not -Throw
@@ -1397,6 +1397,155 @@ InModuleScope $script:ModuleName {
             It 'Should return the correct name' {
                 $getPublishFileNameResult = Get-PublishFileName -Path $mockPath
                 $getPublishFileNameResult | Should -Be $mockName
+            }
+        }
+    }
+
+    Describe 'TestHelper\New-DscSelfSignedCertificate' {
+        BeforeAll {
+            $mockCertificateDNSNames = @('DscEncryptionCert')
+            $mockCertificateKeyUsage = @('KeyEncipherment', 'DataEncipherment')
+            $mockCertificateEKU = @('Document Encryption')
+            $mockCertificateSubject = 'DscEncryptionCert'
+            $mockCertificateFriendlyName = 'DscEncryptionCert'
+            $mockCertificateThumbprint = '1111111111111111111111111111111111111111'
+
+            $validCertificate = New-Object -TypeName PSObject -Property @{
+                Thumbprint        = $mockCertificateThumbprint
+                Subject           = "CN=$mockCertificateSubject"
+                Issuer            = "CN=$mockCertificateSubject"
+                FriendlyName      = $mockCertificateFriendlyName
+                DnsNameList       = @(
+                    @{ Unicode = $mockCertificateDNSNames[0] }
+                )
+                Extensions        = @(
+                    @{ EnhancedKeyUsages = ($mockCertificateKeyUsage -join ', ') }
+                )
+                EnhancedKeyUsages = @(
+                    @{ FriendlyName = $mockCertificateEKU[0] }
+                    @{ FriendlyName = $mockCertificateEKU[1] }
+                )
+                NotBefore         = (Get-Date).AddDays(-30) # Issued on
+                NotAfter          = (Get-Date).AddDays(31) # Expires after
+            }
+
+            # Needs to be done because real Export-Certificate $cert parameter requires an actual [X509Certificate2] object
+            function Export-Certificate
+            {
+                [CmdletBinding()]
+                param
+                (
+                    $FilePath,
+                    $Cert,
+                    $Force,
+                    $Type
+                )
+            }
+        }
+
+        Context 'When creating a self-signed certificate for Windows Server 2012 R2' {
+            BeforeAll {
+                <#
+                    Stub to have something to mock on since we can't wait for
+                    the Expand-Archive to create the stub that is dot-sourced
+                    on runtime.
+                #>
+                function New-SelfSignedCertificateEx
+                {
+                }
+
+                Mock -CommandName Get-ChildItem
+                Mock -CommandName Get-Command
+                Mock -CommandName Invoke-WebRequest
+                Mock -CommandName Export-Certificate
+                Mock -CommandName Set-EnvironmentVariable
+                Mock -CommandName Expand-Archive -MockWith {
+                    <#
+                        This is so there is a file that can be dot-sourced by
+                        the function that is being tested.
+                    #>
+                    $newItemParameters = @{
+                        Path     = Split-Path -Path $Path -Parent
+                        ItemType = 'File'
+                        Name     = 'New-SelfSignedCertificateEx.zip'
+                        Value    = 'function New-SelfSignedCertificateEx {}'
+                        Force    = $true
+                    }
+
+                    New-Item @newItemParameters
+                }
+
+                Mock -CommandName New-SelfSignedCertificateEx -MockWith {
+                    return $validCertificate
+                }
+            }
+
+            It 'Should return a certificate' {
+                $result = New-DscSelfSignedCertificate
+                $result.Thumbprint | Should -Be $mockCertificateThumbprint
+                $result.Subject | Should -Be "CN=$mockCertificateSubject"
+
+                Assert-MockCalled -CommandName Get-ChildItem -Exactly -Times 1
+                Assert-MockCalled -CommandName Get-Command -Exactly -Times 1
+                Assert-MockCalled -CommandName Invoke-WebRequest -Exactly -Times 1
+                Assert-MockCalled -CommandName Expand-Archive -Exactly -Times 1
+                Assert-MockCalled -CommandName New-SelfSignedCertificateEx -Exactly -Times 1
+                Assert-MockCalled -CommandName Set-EnvironmentVariable -Exactly -Times 2
+            }
+        }
+
+        Context 'When creating a self-signed certificate for Windows Server 2016' {
+            BeforeAll {
+                Mock -CommandName Get-ChildItem
+                Mock -CommandName Get-Command -MockWith {
+                    return $true
+                }
+
+                Mock -CommandName Export-Certificate
+                Mock -CommandName Set-EnvironmentVariable
+                Mock -CommandName New-SelfSignedCertificate -MockWith {
+                    return $validCertificate
+                }
+            }
+
+            It 'Should return a certificate' {
+                $result = New-DscSelfSignedCertificate
+                $result.Thumbprint | Should -Be $mockCertificateThumbprint
+                $result.Subject | Should -Be "CN=$mockCertificateSubject"
+
+                Assert-MockCalled -CommandName Get-ChildItem -Exactly -Times 1
+                Assert-MockCalled -CommandName Get-Command -Exactly -Times 1
+                Assert-MockCalled -CommandName New-SelfSignedCertificate -Exactly -Times 1
+                Assert-MockCalled -CommandName Set-EnvironmentVariable -Exactly -Times 2
+            }
+        }
+
+        Context 'When a self-signed certificate already exist' {
+            BeforeAll {
+                Mock -CommandName Get-ChildItem -MockWith {
+                    return $validCertificate
+                }
+
+                <#
+                    Stub to have something to mock on since we can't wait for
+                    the Expand-Archive to create the stub that is dot-sourced
+                    on runtime.
+                #>
+                function New-SelfSignedCertificateEx
+                {
+                }
+
+                Mock -CommandName New-SelfSignedCertificateEx
+                Mock -CommandName New-SelfSignedCertificate
+            }
+
+            It 'Should return a certificate and not call any cmdlets' {
+                $result = New-DscSelfSignedCertificate
+                $result.Thumbprint | Should -Be $mockCertificateThumbprint
+                $result.Subject | Should -Be "CN=$mockCertificateSubject"
+
+                Assert-MockCalled -CommandName New-SelfSignedCertificate -Exactly -Times 0
+                Assert-MockCalled -CommandName New-SelfSignedCertificateEx -Exactly -Times 0
             }
         }
     }

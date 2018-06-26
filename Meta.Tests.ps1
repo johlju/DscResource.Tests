@@ -623,8 +623,8 @@ Describe 'Common Tests - Validate Example Files' -Tag 'Examples' {
                         $mockConfigurationData = @{
                             AllNodes = @(
                                 @{
-                                    NodeName                    = 'localhost'
-                                    PSDscAllowPlainTextPassword = $true
+                                    NodeName        = 'localhost'
+                                    CertificateFile = $env:DscPublicCertificatePath
                                 }
                             )
                         }
@@ -717,6 +717,20 @@ Describe 'Common Tests - Validate Example Files' -Tag 'Examples' {
                                     #>
                                     if (Get-Item -Path variable:ConfigurationData -ErrorAction SilentlyContinue)
                                     {
+                                        # Adding certificate to the examples configuration data.
+                                        foreach ($node in $ConfigurationData.AllNodes.GetEnumerator())
+                                        {
+                                            if ($node.PSDscAllowPlainTextPassword = $true)
+                                            {
+                                                Write-Warning -Message ('The example ''{0}'' are using PSDscAllowPlainTextPassword = $true in the configuration data for node name ''{1}'', this should be removed so the example is secure. PSDscAllowPlainTextPassword was overridden in the tests so the example can be tested securely.' -f $exampleDescriptiveName, $node.NodeName)
+
+                                                # Override PSDscAllowPlainTextPassword.
+                                                $node.PSDscAllowPlainTextPassword = $false
+                                            }
+
+                                            $node.CertificateFile = $env:DscPublicCertificatePath
+                                        }
+
                                         $mockConfigurationData = $ConfigurationData
                                     }
 

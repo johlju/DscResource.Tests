@@ -85,6 +85,11 @@ function Invoke-AppveyorInstallTask
         Invoke-CustomAppveyorInstallTask
     }
 
+    $certificate = New-DscSelfSignedCertificate
+    Write-Info -Message ('Created self-signed certificate ''{0}''.' -f $certificate.Subject)
+    Write-Info -Message ('$env:DscPublicCertificatePath: {0}' -f  $env:DscPublicCertificatePath)
+    Write-Info -Message ('$env:DscCertificateThumbprint: {0}' -f $env:DscCertificateThumbprint)
+
     Write-Info -Message 'Install Task Complete.'
 }
 

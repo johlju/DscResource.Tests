@@ -52,11 +52,11 @@ function New-Nuspec
         [String]
         $Author,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [String]
         $Owners,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [String]
         $DestinationPath,
 
@@ -187,11 +187,11 @@ function Install-ModuleFromPowerShellGallery
     $nugetSource = 'https://www.powershellgallery.com/api/v2'
     # Use Nuget.exe to install the module
     $null = & $nugetPath @( `
-        'install', $ModuleName, `
-        '-source', $nugetSource, `
-        '-outputDirectory', $moduleOutputDirectory, `
-        '-ExcludeVersion' `
-        )
+            'install', $ModuleName, `
+            '-source', $nugetSource, `
+            '-outputDirectory', $moduleOutputDirectory, `
+            '-ExcludeVersion' `
+    )
 
     if ($LASTEXITCODE -ne 0)
     {
@@ -290,7 +290,7 @@ function Initialize-TestEnvironment
         $TestType,
 
         [Parameter()]
-        [ValidateSet('Mof','Class')]
+        [ValidateSet('Mof', 'Class')]
         [String]
         $ResourceType = 'Mof'
     )
@@ -392,11 +392,11 @@ function Initialize-TestEnvironment
 
     # Return the test environment
     return @{
-        DSCModuleName = $DscModuleName
-        DSCResourceName = $DscResourceName
-        TestType = $TestType
+        DSCModuleName      = $DscModuleName
+        DSCResourceName    = $DscResourceName
+        TestType           = $TestType
         ImportedModulePath = $moduleToImportFilePath
-        OldPSModulePath = $oldPSModulePath
+        OldPSModulePath    = $oldPSModulePath
         OldExecutionPolicy = $oldExecutionPolicy
     }
 }
@@ -519,7 +519,7 @@ function Test-FileContainsClassResource
 
     $fileAst = [System.Management.Automation.Language.Parser]::ParseFile($FilePath, [ref]$null, [ref]$null)
 
-    foreach ($fileAttributeAst in $fileAst.FindAll({$args[0] -is [System.Management.Automation.Language.AttributeAst]}, $false))
+    foreach ($fileAttributeAst in $fileAst.FindAll( {$args[0] -is [System.Management.Automation.Language.AttributeAst]}, $false))
     {
         if ($fileAttributeAst.Extent.Text -ieq '[DscResource()]')
         {
@@ -559,7 +559,7 @@ function Get-ClassResourceNameFromFile
     {
         $fileAst = [System.Management.Automation.Language.Parser]::ParseFile($FilePath, [ref]$null, [ref]$null)
 
-        $typeDefinitionAsts = $fileAst.FindAll({$args[0] -is [System.Management.Automation.Language.TypeDefinitionAst]}, $false)
+        $typeDefinitionAsts = $fileAst.FindAll( {$args[0] -is [System.Management.Automation.Language.TypeDefinitionAst]}, $false)
         foreach ($typeDefinitionAst in $typeDefinitionAsts)
         {
             if ($typeDefinitionAst.Attributes.TypeName.Name -ieq 'DscResource')
@@ -694,7 +694,7 @@ function Get-TextFilesList
         $Root
     )
 
-    $textFileExtensions = @('.gitignore', '.gitattributes', '.ps1', '.psm1', '.psd1', '.json', '.xml', '.cmd', '.mof','.md','.js','.yml')
+    $textFileExtensions = @('.gitignore', '.gitattributes', '.ps1', '.psm1', '.psd1', '.json', '.xml', '.cmd', '.mof', '.md', '.js', '.yml')
 
     return Get-ChildItem -Path $Root -File -Recurse | Where-Object { $textFileExtensions -contains $_.Extension }
 }
@@ -749,7 +749,7 @@ function Get-ModuleScriptResourceNames
 
     foreach ($mofSchemaFile in $mofSchemaFiles)
     {
-        $scriptResourceName = $mofSchemaFile.BaseName -replace '.schema',''
+        $scriptResourceName = $mofSchemaFile.BaseName -replace '.schema', ''
         $scriptResourceNames += $scriptResourceName
     }
 
@@ -847,7 +847,7 @@ function Get-SuppressedPSSARuleNameList
     $fileAst = [System.Management.Automation.Language.Parser]::ParseFile($FilePath, [ref]$null, [ref]$null)
 
     # Overall file attributes
-    $attributeAsts = $fileAst.FindAll({$args[0] -is [System.Management.Automation.Language.AttributeAst]}, $true)
+    $attributeAsts = $fileAst.FindAll( {$args[0] -is [System.Management.Automation.Language.AttributeAst]}, $true)
 
     foreach ($attributeAst in $attributeAsts)
     {
@@ -1000,7 +1000,7 @@ function Get-CommandNameParameterValue
     )
 
     $commandStackItem = (Get-PSCallStack).Where{ $_.Command -eq $Command }
-    $commandArgumentNameValues = $commandStackItem.Arguments.TrimStart('{',' ').TrimEnd('}',' ') -split '\s*,\s*'
+    $commandArgumentNameValues = $commandStackItem.Arguments.TrimStart('{', ' ').TrimEnd('}', ' ') -split '\s*,\s*'
     $nameParameterValue = ($commandArgumentNameValues.Where{ $_ -like 'name=*' } -split '=')[-1]
     return $nameParameterValue
 }
@@ -1059,7 +1059,8 @@ function Get-PSModulePathItem
         will return
             C:\Users\foo\Documents\WindowsPowerShell\Modules
 #>
-function Get-UserProfilePSModulePathItem {
+function Get-UserProfilePSModulePathItem
+{
     param()
 
     return Get-PSModulePathItem -Prefix $env:USERPROFILE
@@ -1077,7 +1078,8 @@ function Get-UserProfilePSModulePathItem {
         will return
             C:\Windows\system32\WindowsPowerShell\v1.0\Modules
 #>
-function Get-PSHomePSModulePathItem {
+function Get-PSHomePSModulePathItem
+{
     param()
 
     return Get-PSModulePathItem -Prefix $global:PSHOME
@@ -1100,8 +1102,8 @@ function Test-FileHasByteOrderMark
     )
 
     $getContentParameters = @{
-        Path = $FilePath
-        ReadCount = 3
+        Path       = $FilePath
+        ReadCount  = 3
         TotalCount = 3
     }
 
@@ -1120,8 +1122,8 @@ function Test-FileHasByteOrderMark
 
     # Check for the correct byte order (239,187,191) which equal the Byte Order Mark (BOM).
     return ($firstThreeBytes[0] -eq 239 `
-        -and $firstThreeBytes[1] -eq 187 `
-        -and $firstThreeBytes[2] -eq 191)
+            -and $firstThreeBytes[1] -eq 187 `
+            -and $firstThreeBytes[2] -eq 191)
 }
 
 <#
@@ -1151,7 +1153,7 @@ function Get-RelativePathFromModuleRoot
         Removing the module root path from the file path so that the path
         doesn't get so long in the Pester output.
     #>
-    return ($FilePath -replace [Regex]::Escape($ModuleRootFilePath),'').Trim('\')
+    return ($FilePath -replace [Regex]::Escape($ModuleRootFilePath), '').Trim('\')
 }
 
 <#
@@ -1287,18 +1289,18 @@ function Install-DependentModule
     foreach ($requiredModule in $Module)
     {
         $getModuleParameters = @{
-            Name = $requiredModule.Name
+            Name          = $requiredModule.Name
             ListAvailable = $true
-            ErrorAction = 'SilentlyContinue'
+            ErrorAction   = 'SilentlyContinue'
         }
 
         if ($requiredModule.ContainsKey('Version'))
         {
             $requiredModuleExist = `
                 Get-Module @getModuleParameters |
-                    Where-Object -FilterScript {
-                        $_.Version -eq $requiredModule.Version
-                    }
+                Where-Object -FilterScript {
+                $_.Version -eq $requiredModule.Version
+            }
         }
         else
         {
@@ -1349,9 +1351,9 @@ function Install-DependentModule
             {
                 # Warn the user that the test fill fail
                 Write-Warning -Message ("To be able to compile a configuration the resource module $requiredModuleName " + `
-                    'is required but it is not installed on this computer. ' + `
-                    'The test that is dependent on this module will fail until the required module is installed. ' + `
-                    'Please install it from the PowerShell Gallery to enable these tests to pass.')
+                        'is required but it is not installed on this computer. ' + `
+                        'The test that is dependent on this module will fail until the required module is installed. ' + `
+                        'Please install it from the PowerShell Gallery to enable these tests to pass.')
             } # if
         } # if
     } # foreach
@@ -1391,9 +1393,9 @@ function Get-DscIntegrationTestOrderNumber
 
     $findIntegrationTestAttributeFilter = {
         $args[0] -is [System.Management.Automation.Language.AttributeAst] `
-        -and (
+            -and (
             $args[0].TypeName.FullName -eq 'IntegrationTest' `
-            -or $args[0].TypeName.FullName -eq 'Microsoft.DscResourceKit.IntegrationTest'
+                -or $args[0].TypeName.FullName -eq 'Microsoft.DscResourceKit.IntegrationTest'
         )
     }
 
@@ -1405,7 +1407,7 @@ function Get-DscIntegrationTestOrderNumber
     {
         $findOrderNumberNamedAttributeArgumentFilter = {
             $args[0] -is [System.Management.Automation.Language.NamedAttributeArgumentAst] `
-            -and $args[0].ArgumentName -eq 'OrderNumber'
+                -and $args[0].ArgumentName -eq 'OrderNumber'
         }
 
         [System.Management.Automation.Language.Ast[]] $orderNumberNamedAttributeArgumentAst = `
@@ -1462,11 +1464,11 @@ function Get-DscTestContainerInformation
 
     $findIntegrationTestAttributeFilter = {
         $args[0] -is [System.Management.Automation.Language.AttributeAst] `
-        -and (
+            -and (
             $args[0].TypeName.FullName -eq 'IntegrationTest' `
-            -or $args[0].TypeName.FullName -eq 'Microsoft.DscResourceKit.IntegrationTest' `
-            -or $args[0].TypeName.FullName -eq 'UnitTest' `
-            -or $args[0].TypeName.FullName -eq 'Microsoft.DscResourceKit.UnitTest'
+                -or $args[0].TypeName.FullName -eq 'Microsoft.DscResourceKit.IntegrationTest' `
+                -or $args[0].TypeName.FullName -eq 'UnitTest' `
+                -or $args[0].TypeName.FullName -eq 'Microsoft.DscResourceKit.UnitTest'
         )
     }
 
@@ -1485,14 +1487,14 @@ function Get-DscTestContainerInformation
 
         foreach ($currentAttributeArgumentAst in $attributeArgumentAst)
         {
-            if ($currentAttributeArgumentAst.ArgumentName -in ('ContainerName','ContainerImage'))
+            if ($currentAttributeArgumentAst.ArgumentName -in ('ContainerName', 'ContainerImage'))
             {
                 # Only initiate the hash table if $returnValue is $null.
                 if (-not $returnValue)
                 {
                     # Build the has table to return.
                     $returnValue = @{
-                        ContainerName = $null
+                        ContainerName  = $null
                         ContainerImage = $null
                     }
                 }
@@ -1637,7 +1639,7 @@ function Write-Info
     [CmdletBinding()]
     param
     (
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [System.String]
         $Message,
 
@@ -1729,6 +1731,149 @@ function Get-PublishFileName
     return $filenameWithoutExtension -replace '^[0-9]+-'
 }
 
+<#
+    .SYNOPSIS
+        This command will create a new self-signed certificate to be used to
+        compile configurations.
+
+    .OUTPUTS
+        Returns the created certificate. Writes the path to the public
+        certificate in the machine environment variable $env:DscPublicCertificatePath,
+        and the certificate thumbprint in the machine environment variable
+        $env:DscCertificateThumbprint
+
+    .NOTES
+        If a certificate with subject 'DscEncryptionCert' already exist, that
+        certificate will be returned instead of creating a new, and will assume
+        that the existing certificate was created with this command.
+#>
+function New-DscSelfSignedCertificate
+{
+    $dscPublicCertificatePath = Join-Path -Path $env:temp -ChildPath 'DscPublicKey.cer'
+
+    $certificateSubject = 'DscEncryptionCert'
+
+    # Look if there already is an existing certificate.
+    $certificate = Get-ChildItem -Path 'cert:\LocalMachine\My' |
+        Where-Object -FilterScript {
+        $_.Subject -eq "CN=$certificateSubject"
+    } | Select-Object -First 1
+
+    if (-not $certificate)
+    {
+        $getCommandParameters = @{
+            Name = 'New-SelfSignedCertificate'
+            ErrorAction = 'SilentlyContinue'
+        }
+
+        $newSelfSignedCertificateCommand = Get-Command @getCommandParameters
+
+        $hasNewSelfSignedCertificateCommand = $newSelfSignedCertificateCommand `
+            -and $newSelfSignedCertificateCommand.Parameters.Keys -contains 'Type'
+
+        if ($hasNewSelfSignedCertificateCommand)
+        {
+            $newSelfSignedCertificateParameters = @{
+                Type          = 'DocumentEncryptionCertLegacyCsp'
+                DnsName       = $certificateSubject
+                HashAlgorithm = 'SHA256'
+            }
+
+            $certificate = New-SelfSignedCertificate @newSelfSignedCertificateParameters
+        }
+        else
+        {
+            <#
+                There are build workers still on Windows Server 2012 R2 so let's use the
+                alternate method of New-SelfSignedCertificate.
+            #>
+            $source = "https://gallery.technet.microsoft.com/scriptcenter/Self-signed-certificate-5920a7c6/file/101251/2/New-SelfSignedCertificateEx.zip"
+            $destination = Join-Path -Path $env:TEMP -ChildPath 'New-SelfSignedCertificateEx.zip'
+            Invoke-WebRequest $source -OutFile $destination
+
+            Expand-Archive -Path $destination -DestinationPath (Split-Path -Path $destination -Parent) -Force
+            $destination = $destination -replace '\.zip', '.ps1'
+
+            # Dot-sourcing the New-SelfSignedCertificateEx function.
+            . $destination
+
+            $newSelfSignedCertificateExParameters = @{
+                Subject            = "CN=$certificateSubject"
+                EKU                = 'Document Encryption'
+                KeyUsage           = 'KeyEncipherment, DataEncipherment'
+                SAN                = $certificateSubject
+                FriendlyName       = 'DSC Credential Encryption certificate'
+                Exportable         = $true
+                StoreLocation      = 'LocalMachine'
+                KeyLength          = 2048
+                ProviderName       = 'Microsoft Enhanced Cryptographic Provider v1.0'
+                AlgorithmName      = 'RSA'
+                SignatureAlgorithm = 'SHA256'
+            }
+
+            $certificate = New-SelfSignedCertificateEx @newSelfSignedCertificateExParameters
+        }
+
+        # Export the public key certificate
+        Export-Certificate -Cert $certificate -FilePath $dscPublicCertificatePath -Force
+
+        # Update a machine and session environment variable with the path to the public certificate.
+        Set-EnvironmentVariable -Name 'DscPublicCertificatePath' -Value $dscPublicCertificatePath -Machine
+
+        # Update a machine and session environment variable with the thumbprint of the certificate.
+        Set-EnvironmentVariable -Name 'DscCertificateThumbprint' -Value $certificate.Thumbprint -Machine
+    }
+
+    return $certificate
+}
+
+<#
+    .SYNOPSIS
+        This command will set the machine and session environment variable to
+        a value.
+
+    .PARAMETER Name
+        The name of the variable to set.
+
+    .PARAMETER Value
+        The value of the variable to set. If this is set to $null or
+        empty string ('') the environment variable will be removed.
+
+    .PARAMETER Machine
+        If present, the environment variable will be set machine wide.
+        If not present, the environment variable will be set for the user.
+#>
+function Set-EnvironmentVariable
+{
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [System.String]
+        $Name,
+
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [System.String]
+        $Value,
+
+        [Parameter()]
+        [Switch]
+        $Machine
+    )
+
+    if ($Machine.IsPresent)
+    {
+        [Environment]::SetEnvironmentVariable($Name, $Value, 'Machine')
+        Set-Item -Path "env:\$Name" -Value $Value
+    }
+    else
+    {
+        [Environment]::SetEnvironmentVariable($Name, $Value, 'User')
+        Set-Item -Path "env:\$Name" -Value $Value
+    }
+}
+
 Export-ModuleMember -Function @(
     'New-Nuspec',
     'Install-ModuleFromPowerShellGallery',
@@ -1761,5 +1906,7 @@ Export-ModuleMember -Function @(
     'Write-Info',
     'Get-LocalizedData',
     'Get-DscTestContainerInformation',
-    'Get-PublishFileName'
+    'Get-PublishFileName',
+    'New-DscSelfSignedCertificate',
+    'Set-EnvironmentVariable'
 )
