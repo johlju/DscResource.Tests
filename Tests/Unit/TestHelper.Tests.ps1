@@ -1429,17 +1429,12 @@ InModuleScope $script:ModuleName {
                 NotAfter          = (Get-Date).AddDays(31) # Expires after
             }
 
-            # Needs to be done because real Export-Certificate $cert parameter requires an actual [X509Certificate2] object
+            <#
+                This stub is needed because the real Export-Certificate's $cert
+                parameter requires an actual [X509Certificate2] object.
+            #>
             function Export-Certificate
             {
-                [CmdletBinding()]
-                param
-                (
-                    $FilePath,
-                    $Cert,
-                    $Force,
-                    $Type
-                )
             }
         }
 
@@ -1496,9 +1491,21 @@ InModuleScope $script:ModuleName {
 
         Context 'When creating a self-signed certificate for Windows Server 2016' {
             BeforeAll {
+                <#
+                    Stub is needed if tests is run on operating system older
+                    than Windows 10 and Windows Server 2016.
+                #>
+                function New-SelfSignedCertificate
+                {
+                }
+
                 Mock -CommandName Get-ChildItem
                 Mock -CommandName Get-Command -MockWith {
-                    return $true
+                    return @{
+                        Parameters = @{
+                            Keys = @('Type')
+                        }
+                    }
                 }
 
                 Mock -CommandName Export-Certificate
@@ -1549,4 +1556,79 @@ InModuleScope $script:ModuleName {
             }
         }
     }
+
+    Describe 'TestHelper\Initialize-LocalConfigurationManager' {
+        BeforeAll {
+            Mock -CommandName New-Item
+            Mock -CommandName Remove-Item
+            Mock -CommandName Invoke-Command
+            Mock -CommandName Set-DscLocalConfigurationManager
+
+            # Stub of the generated configuration so it can be mocked.
+            function LocalConfigurationManagerConfiguration
+            {
+            }
+
+            Mock -CommandName LocalConfigurationManagerConfiguration
+        }
+
+        Context 'When Local Configuration Manager should have consistency disabled' {
+            BeforeAll {
+                $expectedConfigurationMetadata = '
+                    Configuration LocalConfigurationManagerConfiguration
+                    {
+                        LocalConfigurationManager
+                        {
+                            ConfigurationMode = ''ApplyOnly''
+                        }
+                    }
+                '
+
+                # Truncating everything to one line so easier to compare.
+                $expectedConfigurationMetadataOneLine = $expectedConfigurationMetadata -replace '[ \r\n]'
+            }
+
+            It 'Should call Invoke-Command with the correct configuration' {
+                { Initialize-LocalConfigurationManager -DisableConsistency } | Should -Not -Throw
+
+                Assert-MockCalled -CommandName Invoke-Command -ParameterFilter {
+                    ($ScriptBlock.ToString() -replace '[ \r\n]') -eq $expectedConfigurationMetadataOneLine
+                } -Exactly -Times 1
+                Assert-MockCalled -CommandName Set-DscLocalConfigurationManager -Exactly -Times 1
+            }
+        }
+
+        Context 'When Local Configuration Manager should have consistency disabled' {
+            BeforeAll {
+                $env:DscCertificateThumbprint = '1111111111111111111111111111111111111111'
+
+                $expectedConfigurationMetadata = "
+                    Configuration LocalConfigurationManagerConfiguration
+                    {
+                        LocalConfigurationManager
+                        {
+                            CertificateId = '$($env:DscCertificateThumbprint)'
+                        }
+                    }
+                "
+
+                # Truncating everything to one line so easier to compare.
+                $expectedConfigurationMetadataOneLine = $expectedConfigurationMetadata -replace '[ \r\n]'
+            }
+
+            AfterAll {
+                Remove-Item -Path 'env:DscCertificateThumbprint' -Force
+            }
+
+            It 'Should call Invoke-Command with the correct configuration' {
+                { Initialize-LocalConfigurationManager -Encrypt } | Should -Not -Throw
+
+                Assert-MockCalled -CommandName Invoke-Command -ParameterFilter {
+                    ($ScriptBlock.ToString() -replace '[ \r\n]') -eq $expectedConfigurationMetadataOneLine
+                } -Exactly -Times 1
+                Assert-MockCalled -CommandName Set-DscLocalConfigurationManager -Exactly -Times 1
+            }
+        }
+    }
+
 }

@@ -1337,7 +1337,8 @@ function Install-DependentModule
                     $installModuleParameters['RequiredVersion'] = $requiredModule.Version
                 }
 
-                Write-Verbose -Message "Installing module $requiredModuleName required to compile a configuration." -Verbose
+                Write-Info -Message "Installing module $requiredModuleName required to compile a configuration."
+
                 try
                 {
                     Install-Module @installModuleParameters -Scope CurrentUser
@@ -1740,7 +1741,7 @@ function Get-PublishFileName
         Returns the created certificate. Writes the path to the public
         certificate in the machine environment variable $env:DscPublicCertificatePath,
         and the certificate thumbprint in the machine environment variable
-        $env:DscCertificateThumbprint
+        $env:DscCertificateThumbprint.
 
     .NOTES
         If a certificate with subject 'DscEncryptionCert' already exist, that
@@ -1874,6 +1875,85 @@ function Set-EnvironmentVariable
     }
 }
 
+<#
+    .SYNOPSIS
+        This command will initialize the Local Configuration Manager. It's
+        meant to be used before running tests.
+
+    .PARAMETER DisableConsistency
+        This will switch off monitoring (consistency) for the Local Configuration
+        Manager (LCM), setting ConfigurationMode to 'ApplyOnly', on the node
+        running tests.
+
+    .PARAMETER Encrypt
+        This will switch on encryption for the Local Configuration
+        Manager (LCM), setting CertificateId to the thumbprint stored in
+        $env:DscCertificateThumbprint, on the node running tests.
+
+        When using this parameter any configuration used for an integration
+        test must have CertificateFile pointing to path stored in
+        $env:DscPublicCertificatePath.
+#>
+function Initialize-LocalConfigurationManager
+{
+    [CmdletBinding()]
+    param
+    (
+        [Parameter()]
+        [Switch]
+        $DisableConsistency,
+
+        [Parameter()]
+        [Switch]
+        $Encrypt
+    )
+
+    $disableConsistencyMofPath = Join-Path -Path $env:temp -ChildPath 'LCMConfiguration'
+    if (-not (Test-Path -Path $disableConsistencyMofPath))
+    {
+        $null = New-Item -Path $disableConsistencyMofPath -ItemType Directory -Force
+    }
+
+    # Start of the metadata configuration
+    $configurationMetadata = '
+        Configuration LocalConfigurationManagerConfiguration
+        {
+            LocalConfigurationManager
+            {
+    '
+
+    if ($DisableConsistency.IsPresent)
+    {
+        Write-Info -Message 'Setting Local Configuration Manager property ConfigurationMode to ''ApplyOnly'', disabling consistency check.'
+        # Have LCM Apply only once.
+        $configurationMetadata += '
+            ConfigurationMode = ''ApplyOnly''
+        '
+    }
+
+    if ($Encrypt.IsPresent)
+    {
+        Write-Info -Message ('Setting Local Configuration Manager property CertificateId to ''{0}'', enabling decryption of credentials.' -f $env:DscCertificateThumbprint)
+        # Should use encryption.
+        $configurationMetadata += ('
+            CertificateId = ''{0}''
+        ' -f $env:DscCertificateThumbprint)
+    }
+
+    # End of the metadata configuration
+    $configurationMetadata += '
+            }
+        }
+    '
+
+    Invoke-Command -ScriptBlock ([scriptblock]::Create($configurationMetadata)) -NoNewScope
+
+    LocalConfigurationManagerConfiguration -OutputPath $disableConsistencyMofPath
+
+    Set-DscLocalConfigurationManager -Path $disableConsistencyMofPath -Force -Verbose
+    $null = Remove-Item -LiteralPath $disableConsistencyMofPath -Recurse -Force -Confirm:$false
+}
+
 Export-ModuleMember -Function @(
     'New-Nuspec',
     'Install-ModuleFromPowerShellGallery',
@@ -1908,5 +1988,6 @@ Export-ModuleMember -Function @(
     'Get-DscTestContainerInformation',
     'Get-PublishFileName',
     'New-DscSelfSignedCertificate',
-    'Set-EnvironmentVariable'
+    'Set-EnvironmentVariable',
+    'Initialize-LocalConfigurationManager'
 )
