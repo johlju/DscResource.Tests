@@ -1785,11 +1785,11 @@ function New-DscSelfSignedCertificate
         else
         {
             <#
-                There are build workers still on Windows Server 2012 R2 so let's use the
-                alternate method of New-SelfSignedCertificate.
+                There are build workers still on Windows Server 2012 R2 so let's
+                use the alternate method of New-SelfSignedCertificate.
             #>
-            Install-Module -Name PSPKI
-            Import-Module -Name PSPKI
+            Install-Module -Name PSPKI -Scope CurrentUser
+            Import-Module PSPKI
 
             $newSelfSignedCertificateExParameters = @{
                 Subject            = "CN=$certificateSubject"
