@@ -1787,16 +1787,13 @@ function New-DscSelfSignedCertificate
             <#
                 There are build workers still on Windows Server 2012 R2 so let's use the
                 alternate method of New-SelfSignedCertificate.
+
+                Note: This should use the PSPKI module on the PowerShell Gallery
+                      (https://github.com/Crypt32/PSPKI), but there is a bug
+                      using that
             #>
-            $source = "https://gallery.technet.microsoft.com/scriptcenter/Self-signed-certificate-5920a7c6/file/101251/2/New-SelfSignedCertificateEx.zip"
-            $destination = Join-Path -Path $env:TEMP -ChildPath 'New-SelfSignedCertificateEx.zip'
-            Invoke-WebRequest $source -OutFile $destination
-
-            Expand-Archive -Path $destination -DestinationPath (Split-Path -Path $destination -Parent) -Force
-            $destination = $destination -replace '\.zip', '.ps1'
-
-            # Dot-sourcing the New-SelfSignedCertificateEx function.
-            . $destination
+            Install-Module -Name PSPKI
+            Import-Module -Name PSPKI
 
             $newSelfSignedCertificateExParameters = @{
                 Subject            = "CN=$certificateSubject"

@@ -1451,25 +1451,10 @@ InModuleScope $script:ModuleName {
 
                 Mock -CommandName Get-ChildItem
                 Mock -CommandName Get-Command
-                Mock -CommandName Invoke-WebRequest
+                Mock -CommandName Install-Module
+                Mock -CommandName Import-Module
                 Mock -CommandName Export-Certificate
                 Mock -CommandName Set-EnvironmentVariable
-                Mock -CommandName Expand-Archive -MockWith {
-                    <#
-                        This is so there is a file that can be dot-sourced by
-                        the function that is being tested.
-                    #>
-                    $newItemParameters = @{
-                        Path     = Split-Path -Path $Path -Parent
-                        ItemType = 'File'
-                        Name     = 'New-SelfSignedCertificateEx.zip'
-                        Value    = 'function New-SelfSignedCertificateEx {}'
-                        Force    = $true
-                    }
-
-                    New-Item @newItemParameters
-                }
-
                 Mock -CommandName New-SelfSignedCertificateEx -MockWith {
                     return $validCertificate
                 }
@@ -1482,8 +1467,8 @@ InModuleScope $script:ModuleName {
 
                 Assert-MockCalled -CommandName Get-ChildItem -Exactly -Times 1
                 Assert-MockCalled -CommandName Get-Command -Exactly -Times 1
-                Assert-MockCalled -CommandName Invoke-WebRequest -Exactly -Times 1
-                Assert-MockCalled -CommandName Expand-Archive -Exactly -Times 1
+                Assert-MockCalled -CommandName Install-Module -Exactly -Times 1
+                Assert-MockCalled -CommandName Import-Module -Exactly -Times 1
                 Assert-MockCalled -CommandName New-SelfSignedCertificateEx -Exactly -Times 1
                 Assert-MockCalled -CommandName Set-EnvironmentVariable -Exactly -Times 2
             }
