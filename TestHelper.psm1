@@ -1795,7 +1795,7 @@ function New-DscSelfSignedCertificate
                 Subject            = "CN=$certificateSubject"
                 EKU                = 'Document Encryption'
                 KeyUsage           = 'KeyEncipherment, DataEncipherment'
-                SAN                = $certificateSubject
+                SAN                = "dns:$certificateSubject"
                 FriendlyName       = 'DSC Credential Encryption certificate'
                 Exportable         = $true
                 StoreLocation      = 'LocalMachine'
