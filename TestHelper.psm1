@@ -1787,10 +1787,6 @@ function New-DscSelfSignedCertificate
             <#
                 There are build workers still on Windows Server 2012 R2 so let's use the
                 alternate method of New-SelfSignedCertificate.
-
-                Note: This should use the PSPKI module on the PowerShell Gallery
-                      (https://github.com/Crypt32/PSPKI), but there is a bug
-                      using that
             #>
             Install-Module -Name PSPKI
             Import-Module -Name PSPKI
