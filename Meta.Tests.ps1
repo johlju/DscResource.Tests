@@ -1321,8 +1321,12 @@ Describe 'Common Tests - Validate Localization' {
                 Test-Path -Path $localizationResourceFilePath | Should -BeTrue -Because 'the there must exist a string resource file in the localization folder en-US'
             }
 
+            Write-Verbose -Message $testCases.Count -Verbose
+
             foreach ($testCase in $testCases)
             {
+                Write-Verbose -Message $testCase.Folder -Verbose
+
                 $skipTest_LocalizedKeys = $false
                 $skipTest_UsedLocalizedKeys = $false
 
