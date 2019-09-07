@@ -41,10 +41,11 @@ function Start-DscResourceTests
 
 <#
     .EXAMPLE
-        Start-MetaTestsInRepositories -ClonePath './temp/' -TestFrameworkUrl 'https://github.com/SSvilen/DscResource.Tests' -TestFrameworkBranch 'KeywordsCheck'
+        Start-MetaTestsInRepositories -ClonePath './temp/' -TestFrameworkUrl 'https://github.com/SSvilen/DscResource.Tests' -TestFrameworkBranch 'KeywordsCheck' -Verbose
 #>
 function Start-MetaTestsInRepositories
 {
+    [CmdletBinding()]
     param
     (
         [Parameter(Position = 0, ParameterSetName = 'Url')]
@@ -72,55 +73,39 @@ function Start-MetaTestsInRepositories
         $TestFrameworkBranch
     )
 
+    $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
+    {
+        throw 'Need to run as administrator to run meta tests.'
+    }
+
     $ClonePath = Resolve-Path -Path $ClonePath -ErrorAction 'Stop'
 
     $githubUrlPath = "https://github.com/$Organization/{0}"
 
-    #$currentLocation = Get-Location
+    $resourceObject = Invoke-RestMethod -Uri $RepositoriesUrl
 
-    try
+    $repositories = $resourceObject.Resources
+
+    foreach ($currentRepository in $repositories)
     {
-        $resourceObject = Invoke-RestMethod -Uri $RepositoriesUrl
+        $repositoryPath = Join-Path -Path $ClonePath -ChildPath $currentRepository
 
-        $repositories = $resourceObject.Resources
+        & git clone ($githubUrlPath -f $currentRepository) $repositoryPath
 
-        foreach ($currentRepository in $repositories)
+        $repositoryTestFrameworkPath = Join-Path -Path $repositoryPath -ChildPath 'DSCResource.Tests'
+
+        if ($PSBoundParameters.ContainsKey('TestFrameworkBranch'))
         {
-            #Set-Location -Path $ClonePath
-
-            $repositoryPath = Join-Path -Path $ClonePath -ChildPath $currentRepository
-
-            & git @(
-                'clone',
-                ($githubUrlPath -f $currentRepository),
-                $repositoryPath
-            )
-
-            #Set-Location -Path './{0}' -f $currentRepository
-
-            $repositoryTestFrameworkPath = Join-Path -Path $repositoryPath -ChildPath 'DSCResource.Tests'
-
-            if ($PSBoundParameters.ContainsKey('TestFrameworkBranch'))
-            {
-                & git clone $TestFrameworkUrl $repositoryTestFrameworkPath --branch $TestFrameworkBranch
-            }
-            else
-            {
-                & git clone $TestFrameworkUrl $repositoryTestFrameworkPath
-            }
-
-            Invoke-Pester -Script (Join-Path -Path $repositoryTestFrameworkPath -ChildPath 'Meta.Tests.ps1') -Show Failed,Summary
+            & git clone $TestFrameworkUrl $repositoryTestFrameworkPath --branch $TestFrameworkBranch
         }
-    }
-    catch
-    {
-        throw $_
-    }
-    finally
-    {
-        #Set-Location -Path $currentLocation
-    }
+        else
+        {
+            & git clone $TestFrameworkUrl $repositoryTestFrameworkPath
+        }
 
+        Invoke-Pester -Script (Join-Path -Path $repositoryTestFrameworkPath -ChildPath 'Meta.Tests.ps1') -Show Failed,Summary
+    }
 }
 
 function Start-MetaTests
